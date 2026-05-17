@@ -520,12 +520,45 @@ body {
 }
 .cl-close:hover { background: rgba(255,255,255,0.14); color: white; }
 .cl-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; line-height: 1.2; }
-.cl-set  { font-size: 12px; color: rgba(255,255,255,0.38); margin-bottom: 14px; }
+.cl-set  { font-size: 12px; color: rgba(255,255,255,0.38); margin-bottom: 10px; }
+.cl-status { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; min-height: 0; }
+.cl-status:empty { display: none; }
+.cl-status-pill { font-size: 10px; padding: 3px 9px; border-radius: 999px; font-weight: 700; letter-spacing: 0.5px; }
+.cl-status-pill.binder { background: rgba(200,156,255,0.18); color: #c89cff; border: 1px solid rgba(200,156,255,0.4); }
+.cl-status-pill.collect { background: rgba(111,207,151,0.18); color: #6fcf97; border: 1px solid rgba(111,207,151,0.4); }
+.cl-status-pill.wish { background: rgba(242,201,76,0.18); color: #f2c94c; border: 1px solid rgba(242,201,76,0.4); }
+.cl-status-pill.print { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.15); }
+.cl-action-group-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.32); margin: 14px 0 6px; }
+.cl-action-group-lbl:first-of-type { margin-top: 0; }
+.cl-action-group-tip { font-size: 10px; color: rgba(255,255,255,0.32); margin-top: 4px; line-height: 1.45; font-style: italic; }
 .cl-meta { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
 .cl-row  { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
 .cl-lbl  { font-size: 9.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.25); width: 56px; flex-shrink: 0; }
 .cl-val  { color: rgba(255,255,255,0.75); }
 .cl-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0 18px; }
+.cl-variants { margin-bottom: 18px; }
+.cl-variants-lbl { font-size: 9.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
+.cl-variant-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; gap: 8px; }
+.cl-variant-row:last-child { border-bottom: none; }
+.cl-variant-name { color: rgba(255,255,255,0.78); }
+.cl-variant-price { color: #6fcf97; font-weight: 700; }
+.cl-variant-price.cm { color: #c89cff; }
+.cl-variant-range { font-size: 10px; color: rgba(255,255,255,0.32); margin-left: 5px; font-weight: 400; }
+.cl-variant-empty { font-size: 10.5px; color: rgba(255,255,255,0.3); font-style: italic; padding: 4px 0; }
+.cl-variant-add { background: rgba(200,156,255,0.13); border: 1px solid rgba(200,156,255,0.32); border-radius: 4px; color: #c89cff; font-size: 9.5px; padding: 3px 9px; cursor: pointer; font-weight: 700; margin-left: 8px; transition: all 0.12s; letter-spacing: 0.3px; vertical-align: middle; }
+.cl-variant-add:hover { background: rgba(200,156,255,0.28); border-color: #c89cff; color: white; }
+.cl-variant-add.in-binder { background: rgba(111,207,151,0.16); border-color: rgba(111,207,151,0.45); color: #6fcf97; }
+.cl-variant-add.in-binder:hover { background: rgba(255,80,80,0.18); border-color: rgba(255,80,80,0.5); color: rgba(255,140,140,1); }
+
+/* Variant badge inside a binder slot */
+.binder-variant-badge {
+  position: absolute; bottom: 3px; left: 3px;
+  background: rgba(0,0,0,0.78); color: #c89cff;
+  font-size: 8px; font-weight: 800; padding: 1px 5px; border-radius: 3px;
+  z-index: 2; pointer-events: none; letter-spacing: 0.4px;
+  max-width: calc(100% - 6px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-transform: uppercase;
+}
 .cl-actions { display: flex; flex-direction: column; gap: 8px; }
 .cl-btn {
   padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
@@ -718,12 +751,19 @@ body {
     <div class="cl-info-side">
       <div class="cl-name" id="clName"></div>
       <div class="cl-set"  id="clSet"></div>
+      <div class="cl-status" id="clStatus"></div>
       <div class="cl-meta" id="clMeta"></div>
+      <div id="clVariants"></div>
       <div class="cl-divider"></div>
+      <div class="cl-action-group-lbl">Track this card</div>
       <div class="cl-actions">
-        <button class="cl-btn cl-btn-binder"  id="clBtnBinder"  onclick="clToggleBinder()"></button>
         <button class="cl-btn cl-btn-collect" id="clBtnCollect" onclick="clToggleCollect()"></button>
         <button class="cl-btn cl-btn-wish"    id="clBtnWish"    onclick="clToggleWish()"></button>
+      </div>
+      <div class="cl-action-group-tip">These are independent of your binder — marking as Collected doesn't add the card to any binder spread.</div>
+      <div class="cl-action-group-lbl">Use this card</div>
+      <div class="cl-actions">
+        <button class="cl-btn cl-btn-binder"  id="clBtnBinder"  onclick="clToggleBinder()"></button>
         <button class="cl-btn" id="clBtnPrint" onclick="clTogglePrintQueue()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.8)">🖨 Add to Print Queue</button>
         <button class="cl-btn" id="clBtnFanArt" onclick="clFindFanArt()" style="background:rgba(200,156,255,0.12);border-color:rgba(200,156,255,0.35);color:#c89cff">🎨 Find fan art</button>
       </div>
@@ -1147,9 +1187,11 @@ function _serializeBinderItems() {
       return { id: item.id, type: 'empty' };
     } else if (item.type === 'card') {
       const d = item.data || {};
-      return { id: item.id, type: 'card', cols: item.cols||1, rows: item.rows||1,
+      const out = { id: item.id, type: 'card', cols: item.cols||1, rows: item.rows||1,
         data: { id: d.id, name: d.name, number: d.number,
                 images: d.images, set: { name: d.set?.name, id: d.set?.id } } };
+      if (item.variant) out.variant = item.variant;
+      return out;
     } else {
       return { id: item.id, type: 'fanart', cols: item.cols||1, rows: item.rows||1,
         data: { ...item.data } };
@@ -1205,7 +1247,9 @@ function _rehydrateItem(item) {
     return { id: item.id, type: 'empty', cols: 1, rows: 1 };
   } else if (item.type === 'card') {
     if (item.data?.id) cardCache[item.data.id] = item.data;
-    return { id: item.id, type: 'card', cols: item.cols||1, rows: item.rows||1, data: item.data };
+    const out = { id: item.id, type: 'card', cols: item.cols||1, rows: item.rows||1, data: item.data };
+    if (item.variant) out.variant = item.variant;
+    return out;
   } else {
     // Reuse an existing fanArtCache entry if we have one, else create.
     if (!fanArtCache[item.id]) {
@@ -2737,6 +2781,41 @@ function reframePastedArt(faId, e) {
 }
 
 // ── Binder Logic ──────────────────────────────────────────────────
+// Add or remove a specific TCGPlayer variant of a card from the binder.
+// Uses a composite id (cardId|variant) so the same card can sit in the
+// binder once per variant. Independent from the default-binder toggle.
+function toggleCardVariantInBinder(cardId, variant) {
+  const card = cardCache[cardId];
+  if (!card) return;
+  const instanceId = `${cardId}|${variant}`;
+  const idx = binder.findIndex(b => b.id === instanceId);
+  if (idx >= 0) {
+    binder[idx] = makeEmptySlot();
+  } else {
+    binder.push({ id: instanceId, type: 'card', variant, cols: 1, rows: 1, data: card });
+  }
+  // Update the card grid's "selected" indicator: green when ANY copy
+  // of the underlying card is in the binder.
+  const el = document.getElementById(`card-${cardId}`);
+  if (el) {
+    const anyInBinder = binder.some(b => b.type === 'card' && (b.id === cardId || (b.id || '').startsWith(cardId + '|')));
+    el.classList.toggle('selected', anyInBinder);
+  }
+  updateBinderUI();
+  // Re-render the lightbox's variants section to refresh button states
+  if (_clCard?.id === cardId) {
+    document.getElementById('clVariants').innerHTML = renderCardVariants(_clCard);
+    updateLightboxButtons();
+  }
+  // Re-render the open binder if visible
+  if (document.getElementById('binderOverlay').classList.contains('open')) {
+    renderSpread(currentSpread);
+    renderSpreadDots();
+    updateFlipNav();
+  }
+  saveStorage();
+}
+
 function toggleCard(card) {
   const item = { id: card.id, type:'card', data: card };
   const idx = binder.findIndex(b => b.id === card.id);
@@ -2964,6 +3043,13 @@ function renderPage(gridId, lblId, pageIdx) {
     // Apply saved crop/zoom for fan art items
     if (item.type === 'fanart' && item.data) _applyCropToImg(img, item.data);
     slot.appendChild(img);
+    // Variant label for cards added via a specific TCGPlayer variant
+    if (item.type === 'card' && item.variant) {
+      const badge = document.createElement('span');
+      badge.className = 'binder-variant-badge';
+      badge.textContent = formatVariantName(item.variant);
+      slot.appendChild(badge);
+    }
     slot.title = item.type==='fanart' ? 'Click for print / reframe / remove · Drag to reorder'
                                       : 'Click to remove · Drag to reorder';
 
@@ -3216,6 +3302,9 @@ function openLightbox(card) {
     meta.appendChild(r);
   });
 
+  // Variants & prices (TCGPlayer breakdown by printing + Cardmarket EUR)
+  document.getElementById('clVariants').innerHTML = renderCardVariants(card);
+
   // External links
   const ext = document.getElementById('clExt');
   ext.innerHTML = '';
@@ -3235,23 +3324,108 @@ function closeLightbox() {
   _clCard = null;
 }
 
+// Build a Variants & Prices block for the lightbox.
+// Pulls every TCGPlayer variant (Holofoil, Normal, Reverse Holofoil, 1st
+// Edition, etc.) plus a Cardmarket EUR line when available.
+function renderCardVariants(card) {
+  const tcg = card.tcgplayer?.prices || {};
+  const cm  = card.cardmarket?.prices || null;
+  const variantKeys = Object.keys(tcg);
+  const hasCm = cm && (typeof cm.averageSellPrice === 'number' || typeof cm.trendPrice === 'number' || typeof cm.lowPrice === 'number');
+
+  if (!variantKeys.length && !hasCm) {
+    return `<div class="cl-variants">
+      <div class="cl-variants-lbl">Variants &amp; Prices</div>
+      <div class="cl-variant-empty">No price data available for this card.</div>
+    </div>`;
+  }
+
+  let html = `<div class="cl-variants">
+    <div class="cl-variants-lbl">Variants &amp; Prices</div>`;
+
+  // TCGPlayer rows — each variant gets its own "+ Binder" button so the
+  // same card can sit in the binder once per variant (Holo + Normal +
+  // Reverse Holo, etc.) without collapsing into a single entry.
+  variantKeys.forEach(key => {
+    const p = tcg[key] || {};
+    const market = typeof p.market === 'number' ? p.market : null;
+    const low = typeof p.low === 'number' ? p.low : null;
+    const high = typeof p.high === 'number' ? p.high : null;
+    const priceStr = market !== null ? `$${market.toFixed(2)}` : '—';
+    const rangeStr = (low !== null && high !== null) ? `$${low.toFixed(2)}–$${high.toFixed(2)}` : '';
+    const instanceId = `${card.id}|${key}`;
+    const inBinder = binder.some(b => b.id === instanceId);
+    const btnClass = 'cl-variant-add' + (inBinder ? ' in-binder' : '');
+    const btnText  = inBinder ? '✓ In Binder' : '＋ Binder';
+    html += `<div class="cl-variant-row">
+      <span class="cl-variant-name">${formatVariantName(key)}</span>
+      <span style="display:inline-flex;align-items:center;gap:4px">
+        <span class="cl-variant-price">${priceStr}</span>${rangeStr ? `<span class="cl-variant-range">${rangeStr}</span>` : ''}
+        <button class="${btnClass}" onclick="toggleCardVariantInBinder('${card.id}','${key.replace(/'/g,"\\'")}')">${btnText}</button>
+      </span>
+    </div>`;
+  });
+
+  // Cardmarket EUR row
+  if (hasCm) {
+    const avg = typeof cm.averageSellPrice === 'number' ? cm.averageSellPrice : null;
+    const trend = typeof cm.trendPrice === 'number' ? cm.trendPrice : null;
+    const low = typeof cm.lowPrice === 'number' ? cm.lowPrice : null;
+    const main = avg ?? trend ?? low;
+    const priceStr = main !== null ? `€${main.toFixed(2)}` : '—';
+    const note = avg !== null ? 'avg' : (trend !== null ? 'trend' : 'low');
+    html += `<div class="cl-variant-row">
+      <span class="cl-variant-name">Cardmarket (${note})</span>
+      <span><span class="cl-variant-price cm">${priceStr}</span></span>
+    </div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// Convert API variant keys (camelCase + leading digits) into human labels.
+//   holofoil          → Holofoil
+//   reverseHolofoil   → Reverse Holofoil
+//   1stEditionHolofoil → 1st Edition Holofoil
+function formatVariantName(key) {
+  return key
+    .replace(/([A-Z])/g, ' $1')           // insert space before capitals
+    .replace(/(\d+)([A-Za-z])/g, '$1 $2') // 1stEdition → 1st Edition
+    .trim()
+    .replace(/^./, c => c.toUpperCase());
+}
+
 function updateLightboxButtons() {
   if (!_clCard) return;
   const id = _clCard.id;
   const inBinder  = binder.some(b => b.id === id);
   const inCollect = collection.has(id);
   const inWish    = wishlist.has(id);
+  const inQueue   = isInPrintQueue('card', id);
+
+  // Status pills under the card name show at-a-glance which lists this
+  // card is currently in. Multiple are possible — these flags are independent.
+  const status = document.getElementById('clStatus');
+  if (status) {
+    const pills = [];
+    if (inBinder)  pills.push('<span class="cl-status-pill binder">📖 In current binder</span>');
+    if (inCollect) pills.push('<span class="cl-status-pill collect">✓ Collected</span>');
+    if (inWish)    pills.push('<span class="cl-status-pill wish">★ Wishlisted</span>');
+    if (inQueue)   pills.push('<span class="cl-status-pill print">🖨 In print queue</span>');
+    status.innerHTML = pills.join('');
+  }
 
   const bb = document.getElementById('clBtnBinder');
-  bb.textContent = inBinder ? '✓ In Binder — Click to Remove' : '＋ Add to Binder';
+  bb.textContent = inBinder ? '📖 ✓ In Binder — Click to Remove' : '📖 ＋ Add to Binder';
   bb.classList.toggle('in-binder', inBinder);
 
   const bc = document.getElementById('clBtnCollect');
-  bc.textContent = inCollect ? '✓ In Collection' : '✓ Mark as Collected';
+  bc.textContent = inCollect ? '✓ Owned — Click to Remove from Collection' : '✓ Mark as Owned';
   bc.classList.toggle('active', inCollect);
 
   const bw = document.getElementById('clBtnWish');
-  bw.textContent = inWish ? '★ On Wishlist' : '★ Add to Wishlist';
+  bw.textContent = inWish ? '★ On Wishlist — Click to Remove' : '★ Add to Wishlist';
   bw.classList.toggle('active', inWish);
 
   // Print queue toggle button
