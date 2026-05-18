@@ -528,6 +528,23 @@ body {
 .cl-status-pill.collect { background: rgba(111,207,151,0.18); color: #6fcf97; border: 1px solid rgba(111,207,151,0.4); }
 .cl-status-pill.wish { background: rgba(242,201,76,0.18); color: #f2c94c; border: 1px solid rgba(242,201,76,0.4); }
 .cl-status-pill.print { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.15); }
+.cl-status-pill.purchased { background: rgba(255,193,84,0.12); color: #ffc154; border: 1px solid rgba(255,193,84,0.4); }
+.cl-purchase-info { background: rgba(255,193,84,0.07); border: 1px solid rgba(255,193,84,0.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 11.5px; color: rgba(255,255,255,0.72); line-height: 1.55; }
+.cl-purchase-info strong { color: #ffc154; }
+.cl-purchase-info a { color: rgba(200,156,255,0.7); text-decoration: none; font-size: 10px; margin-left: 8px; }
+.cl-purchase-info a:hover { color: #c89cff; }
+.cl-purchase-info-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cl-purchase-savings { color: #6fcf97; font-size: 10px; }
+.cl-purchase-overpaid { color: rgba(255,140,140,0.9); font-size: 10px; }
+.cl-btn-purchase { background: rgba(255,193,84,0.14); border: 1px solid rgba(255,193,84,0.35); color: #ffc154; }
+.cl-btn-purchase:hover { background: rgba(255,193,84,0.25); }
+.cl-btn-purchase.has-record { background: rgba(255,193,84,0.2); }
+
+/* Purchase modal */
+.pmod-field { display: block; margin-bottom: 12px; }
+.pmod-field-lbl { font-size: 10.5px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 4px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+.pmod-field input { font-size: 13px; padding: 8px 10px; }
+.pmod-tip { font-size: 10.5px; color: rgba(255,255,255,0.4); margin-top: 12px; line-height: 1.55; padding: 8px 10px; background: rgba(255,255,255,0.04); border-radius: 6px; }
 .cl-action-group-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.32); margin: 14px 0 6px; }
 .cl-action-group-lbl:first-of-type { margin-top: 0; }
 .cl-action-group-tip { font-size: 10px; color: rgba(255,255,255,0.32); margin-top: 4px; line-height: 1.45; font-style: italic; }
@@ -794,15 +811,17 @@ body {
       <div class="cl-name" id="clName"></div>
       <div class="cl-set"  id="clSet"></div>
       <div class="cl-status" id="clStatus"></div>
+      <div id="clPurchaseInfo"></div>
       <div class="cl-meta" id="clMeta"></div>
       <div id="clVariants"></div>
       <div class="cl-divider"></div>
       <div class="cl-action-group-lbl">Track this card</div>
       <div class="cl-actions">
         <button class="cl-btn cl-btn-collect" id="clBtnCollect" onclick="clToggleCollect()"></button>
+        <button class="cl-btn cl-btn-purchase" id="clBtnPurchase" onclick="clOpenPurchase()">💰 Record purchase…</button>
         <button class="cl-btn cl-btn-wish"    id="clBtnWish"    onclick="clToggleWish()"></button>
       </div>
-      <div class="cl-action-group-tip">These are independent of your binder — marking as Collected doesn't add the card to any binder spread.</div>
+      <div class="cl-action-group-tip">These are independent of your binder — marking as Collected doesn't add the card to any binder spread. "Record purchase" saves price & date and marks it Collected.</div>
       <div class="cl-action-group-lbl">Use this card</div>
       <div class="cl-actions">
         <button class="cl-btn cl-btn-binder"  id="clBtnBinder"  onclick="clToggleBinder()"></button>
@@ -890,6 +909,85 @@ body {
   <button class="binder-ctx-remove" onclick="binderCtxRemove()">✕ Remove from binder</button>
 </div>
 <div id="binderCtxBg" style="display:none;position:fixed;inset:0;z-index:109" onclick="closeBinderCtx()"></div>
+
+<!-- ── Purchase Tracking Modal ── -->
+<div id="purchaseModal" class="ph-modal" style="display:none" onclick="if(event.target===this)closePurchaseModal()">
+  <div class="ph-modal-box" style="width:min(440px, 96vw)">
+    <div class="ph-modal-hdr">
+      <h3 id="purchaseModalTitle">💰 Record Purchase</h3>
+      <button class="panel-close" onclick="closePurchaseModal()">✕</button>
+    </div>
+    <div style="padding: 14px 18px 8px">
+      <label class="pmod-field">
+        <span class="pmod-field-lbl">💵 Price paid (USD)</span>
+        <input class="filter-input" id="purchasePrice" type="number" step="0.01" min="0" placeholder="0.00">
+      </label>
+      <label class="pmod-field">
+        <span class="pmod-field-lbl">📅 Date</span>
+        <input class="filter-input" id="purchaseDate" type="date">
+      </label>
+      <label class="pmod-field">
+        <span class="pmod-field-lbl">🏪 Source</span>
+        <input class="filter-input" id="purchaseSource" list="purchaseSources" placeholder="Whatnot, TCGPlayer, local shop…" autocomplete="off">
+        <datalist id="purchaseSources">
+          <option>Whatnot</option><option>TCGPlayer</option><option>eBay</option>
+          <option>Cardmarket</option><option>Local game store</option><option>Pack pull</option>
+          <option>Gift</option><option>Trade</option>
+        </datalist>
+      </label>
+      <label class="pmod-field">
+        <span class="pmod-field-lbl">📝 Notes (optional)</span>
+        <input class="filter-input" id="purchaseNotes" placeholder="Condition, who from, etc.">
+      </label>
+      <p class="pmod-tip">Saving will add this card to your <strong style="color:#6fcf97">Collection</strong>, remove it from your <strong style="color:#f2c94c">Wishlist</strong> (if there), and store the purchase record.</p>
+    </div>
+    <div class="ph-modal-footer" style="gap:8px;display:flex;justify-content:space-between">
+      <button class="btn btn-danger" id="purchaseDeleteBtn" onclick="deletePurchase()" style="display:none">🗑 Delete record</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-ghost" onclick="closePurchaseModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmPurchase()">Save Purchase</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Print List Picker Modal ── -->
+<div id="printListModal" class="ph-modal" style="display:none" onclick="if(event.target===this)closePrintListModal()">
+  <div class="ph-modal-box" style="width:min(760px, 96vw)">
+    <div class="ph-modal-hdr">
+      <h3 id="printListModalTitle">🖨 Print List</h3>
+      <button class="panel-close" onclick="closePrintListModal()">✕</button>
+    </div>
+    <p class="ph-modal-sub" id="printListModalSub">Pick which cards to include. Filters narrow the list; you can also click cards to toggle them individually.</p>
+
+    <!-- Filters -->
+    <div style="padding: 0 18px 8px;display:flex;gap:7px;flex-wrap:wrap">
+      <input class="filter-input" id="plFilterName" placeholder="🔍 Filter by name (e.g. Charizard)…" oninput="renderPrintListItems()" style="flex:1;min-width:160px;font-size:12px">
+      <input class="filter-input" id="plFilterSet"  list="setList" placeholder="📦 Filter by set (e.g. Crown Zenith)…" oninput="renderPrintListItems()" style="flex:1;min-width:160px;font-size:12px" autocomplete="off">
+      <input class="filter-input" id="plFilterRarity" list="plRarityList" placeholder="⭐ Filter by rarity…" oninput="renderPrintListItems()" style="flex:1;min-width:140px;font-size:12px" autocomplete="off">
+      <datalist id="plRarityList">
+        <option>Common</option><option>Uncommon</option><option>Rare</option><option>Rare Holo</option>
+        <option>Double Rare</option><option>Rare Ultra</option><option>Hyper Rare</option>
+        <option>Rare Secret</option><option>Rare Rainbow</option><option>Illustration Rare</option>
+        <option>Special Illustration Rare</option><option>Promo</option>
+      </datalist>
+    </div>
+
+    <div class="ph-select-row">
+      <button class="btn btn-ghost" style="font-size:11px" onclick="plSelectAll(true)">Select all visible</button>
+      <button class="btn btn-ghost" style="font-size:11px" onclick="plSelectAll(false)">Deselect all visible</button>
+      <button class="btn btn-ghost" style="font-size:11px" onclick="plClearFilters()" title="Clear all filters">✕ Clear filters</button>
+      <span id="plSelCount" style="font-size:11px;color:rgba(255,255,255,0.4);margin-left:auto"></span>
+    </div>
+
+    <div id="plCardList" class="ph-card-list" style="max-height:55vh"></div>
+
+    <div class="ph-modal-footer" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <span id="plTotalCost" style="font-size:12px;color:rgba(255,255,255,0.55)"></span>
+      <button class="btn btn-primary" onclick="generatePrintListPDF()">🖨 Print Selected</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Welcome Modal ── -->
 <div id="welcomeModal" class="welcome-modal" onclick="if(event.target===this)dismissWelcome()">
@@ -1727,21 +1825,53 @@ async function fetchPage(q, page) {
 // (USD, the source most US/NA users trust for hot cards like SIR pulls)
 // and walks every printed variant to find the highest. Falls back to
 // Cardmarket (EUR) when TCGPlayer data isn't there.
+// Approximate EUR → USD conversion. Used when a card has only Cardmarket
+// (European) pricing and we need to surface a USD-comparable number.
+// Hardcoded since a live FX API would be another dependency; revise this
+// every so often if the exchange rate moves significantly.
+const EUR_TO_USD = 1.08;
+
 function getCardPrice(c) {
   const tcg = c.tcgplayer?.prices;
   if (tcg && typeof tcg === 'object') {
     let max = 0;
     for (const variant in tcg) {
       const v = tcg[variant];
-      if (!v) continue;
-      const p = v.market ?? v.mid ?? v.high ?? v.low ?? 0;
+      if (!v || typeof v !== 'object') continue;
+      // Prefer market, but fall through every numeric field available so
+      // cards whose primary fields are null still return *some* price.
+      const p = v.market ?? v.mid ?? v.directLow ?? v.high ?? v.low ?? null;
       if (typeof p === 'number' && p > max) max = p;
     }
     if (max > 0) return max;
+    // Final attempt: scan ANY numeric field across all variants. Catches
+    // newly-indexed cards where only an obscure field is populated.
+    for (const variant in tcg) {
+      const v = tcg[variant];
+      if (!v || typeof v !== 'object') continue;
+      for (const k in v) {
+        const val = v[k];
+        if (typeof val === 'number' && val > max) max = val;
+      }
+    }
+    if (max > 0) return max;
   }
+  // Cardmarket fallback — convert EUR to USD so the returned value is
+  // consistent with TCGPlayer-sourced prices (the rest of the app shows
+  // a $ prefix and assumes USD).
   const cm = c.cardmarket?.prices;
   if (cm) {
-    return cm.averageSellPrice || cm.trendPrice || cm.lowPrice || 0;
+    const eur = cm.averageSellPrice
+        || cm.trendPrice
+        || cm.lowPrice
+        || cm.avg30
+        || cm.avg7
+        || cm.avg1
+        || cm.suggestedPrice
+        || cm.reverseHoloTrend
+        || cm.reverseHoloAvg30
+        || 0;
+    return eur * EUR_TO_USD;
   }
   return 0;
 }
@@ -1804,19 +1934,138 @@ function updatePrintListButtonLabel() {
   btn.textContent = labels[viewFilter] || '🖨 Print list';
 }
 
+// State for the Print List picker modal
+let _printListItems = [];
+let _printListSelected = new Set();
+
 function printCurrentListView() {
-  // Use the cards visible in the grid (currentCards filtered through the active view).
-  const list = (currentCards || []).filter(c => {
+  // Compute the visible cards based on the active view filter.
+  _printListItems = (currentCards || []).filter(c => {
     if (viewFilter === 'collected') return collection.has(c.id);
     if (viewFilter === 'wishlist')  return wishlist.has(c.id);
     if (viewFilter === 'missing')   return wishlist.has(c.id) && !collection.has(c.id);
     return true;
   });
-  if (!list.length) {
+  if (!_printListItems.length) {
     alert('No cards in the current view to print. Switch to Wishlist / Collected / search for something first.');
     return;
   }
+  // Open the filterable picker modal — user reviews + filters before generating the print.
+  openPrintListModal();
+}
 
+function openPrintListModal() {
+  // Start with everything selected so the default action is "print all visible"
+  _printListSelected = new Set(_printListItems.map(c => c.id));
+  // Reset filter inputs
+  ['plFilterName','plFilterSet','plFilterRarity'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  // View-specific title
+  const titles = {
+    all:       '🖨 Print Card List',
+    collected: '🖨 Print Collection',
+    wishlist:  '🖨 Print Wishlist',
+    missing:   '🖨 Print Shopping List',
+  };
+  document.getElementById('printListModalTitle').textContent = titles[viewFilter] || '🖨 Print List';
+  renderPrintListItems();
+  document.getElementById('printListModal').style.display = 'flex';
+}
+
+function closePrintListModal() {
+  document.getElementById('printListModal').style.display = 'none';
+}
+
+function _plMatchesFilters(c) {
+  const name   = document.getElementById('plFilterName')?.value.toLowerCase().trim()   || '';
+  const set    = document.getElementById('plFilterSet')?.value.toLowerCase().trim()    || '';
+  const rarity = document.getElementById('plFilterRarity')?.value.toLowerCase().trim() || '';
+  if (name   && !(c.name        || '').toLowerCase().includes(name))   return false;
+  if (set    && !(c.set?.name   || '').toLowerCase().includes(set))    return false;
+  if (rarity && !(c.rarity      || '').toLowerCase().includes(rarity)) return false;
+  return true;
+}
+
+function renderPrintListItems() {
+  const list = document.getElementById('plCardList');
+  if (!list) return;
+  list.innerHTML = '';
+  const visible = _printListItems.filter(_plMatchesFilters);
+  if (!visible.length) {
+    list.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.35);grid-column:1/-1;font-size:12px;font-style:italic">No cards match the current filters.</div>';
+    updatePlSelCount();
+    return;
+  }
+  visible.forEach(c => {
+    const selected = _printListSelected.has(c.id);
+    const div = document.createElement('div');
+    div.className = 'ph-card-item' + (selected ? ' selected' : '');
+    div.dataset.id = c.id;
+    const price = getCardPrice(c);
+    const priceStr = price > 0 ? `$${price.toFixed(2)}` : '';
+    div.innerHTML = `
+      <img src="${escapeHtml(c.images?.small||'')}" alt="${escapeHtml(c.name||'')}" loading="lazy">
+      <div class="ph-label">${escapeHtml(c.name||'')}<br><span style="opacity:.55;font-size:7.5px">${escapeHtml(c.set?.name||'')} #${escapeHtml(c.number||'—')}</span>${priceStr ? `<br><span style="color:#6fcf97;font-weight:700">${priceStr}</span>` : ''}</div>
+      <div class="ph-check">✓</div>`;
+    div.onclick = () => {
+      if (_printListSelected.has(c.id)) _printListSelected.delete(c.id);
+      else _printListSelected.add(c.id);
+      div.classList.toggle('selected');
+      updatePlSelCount();
+    };
+    list.appendChild(div);
+  });
+  updatePlSelCount();
+}
+
+function plSelectAll(val) {
+  // Operates only on items that pass the current filters
+  _printListItems.forEach(c => {
+    if (!_plMatchesFilters(c)) return;
+    if (val) _printListSelected.add(c.id);
+    else _printListSelected.delete(c.id);
+  });
+  renderPrintListItems();
+}
+
+function plClearFilters() {
+  ['plFilterName','plFilterSet','plFilterRarity'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderPrintListItems();
+}
+
+function updatePlSelCount() {
+  const visibleCount = _printListItems.filter(_plMatchesFilters).length;
+  const totalCount = _printListItems.length;
+  const selCount = _printListSelected.size;
+  const countEl = document.getElementById('plSelCount');
+  if (countEl) {
+    const filterActive = visibleCount !== totalCount;
+    countEl.textContent = filterActive
+      ? `${selCount} selected · ${visibleCount} shown · ${totalCount} total`
+      : `${selCount} of ${totalCount} selected`;
+  }
+  // Total cost of currently-selected items
+  const total = _printListItems
+    .filter(c => _printListSelected.has(c.id))
+    .reduce((s, c) => s + getCardPrice(c), 0);
+  const totalEl = document.getElementById('plTotalCost');
+  if (totalEl) totalEl.textContent = `Estimated total: $${total.toFixed(2)}`;
+}
+
+function generatePrintListPDF() {
+  if (_printListSelected.size === 0) {
+    alert('Select at least one card.');
+    return;
+  }
+  const selected = _printListItems.filter(c => _printListSelected.has(c.id));
+  closePrintListModal();
+  _doPrintList(selected);
+}
+
+function _doPrintList(list) {
   const viewName = {
     all:       'Card List',
     collected: 'My Collection',
@@ -2150,7 +2399,14 @@ function toggleCardById(id, e) {
 // ── Collection / Wishlist ──────────────────────────────────────────
 function toggleCollection(cardId, e) {
   e.stopPropagation();
-  collection.has(cardId) ? collection.delete(cardId) : collection.add(cardId);
+  if (collection.has(cardId)) {
+    collection.delete(cardId);
+  } else {
+    collection.add(cardId);
+    // Once owned, the card no longer belongs on the "want" list — auto-remove
+    // from wishlist so the shopping list stays accurate.
+    wishlist.delete(cardId);
+  }
   saveStorage(); refreshCardEl(cardId); updateCounters();
 }
 function toggleWishlist(cardId, e) {
@@ -3582,8 +3838,17 @@ function renderCardVariants(card) {
     </div>`;
   }
 
+  // Show the price source's last-updated date so the user can tell how
+  // fresh the numbers are. TCGPlayer and Cardmarket both expose an
+  // updatedAt timestamp on the card.
+  const tcgDate = card.tcgplayer?.updatedAt || '';
+  const cmDate  = card.cardmarket?.updatedAt || '';
+  const updatedTag = tcgDate || cmDate
+    ? `<span style="font-size:9px;color:rgba(255,255,255,0.32);font-weight:400;letter-spacing:0;text-transform:none;margin-left:8px">updated ${escapeHtml(tcgDate || cmDate)}</span>`
+    : '';
+
   let html = `<div class="cl-variants">
-    <div class="cl-variants-lbl">Variants &amp; Prices</div>`;
+    <div class="cl-variants-lbl">Variants &amp; Prices${updatedTag}</div>`;
 
   // TCGPlayer rows — each variant gets its own "+ Binder" button so the
   // same card can sit in the binder once per variant (Holo + Normal +
@@ -3608,14 +3873,17 @@ function renderCardVariants(card) {
     </div>`;
   });
 
-  // Cardmarket EUR row
+  // Cardmarket EUR row — show approximate USD equivalent alongside the
+  // raw EUR figure so it's comparable to TCGPlayer rows above.
   if (hasCm) {
     const avg = typeof cm.averageSellPrice === 'number' ? cm.averageSellPrice : null;
     const trend = typeof cm.trendPrice === 'number' ? cm.trendPrice : null;
     const low = typeof cm.lowPrice === 'number' ? cm.lowPrice : null;
     const main = avg ?? trend ?? low;
-    const priceStr = main !== null ? `€${main.toFixed(2)}` : '—';
     const note = avg !== null ? 'avg' : (trend !== null ? 'trend' : 'low');
+    const priceStr = main !== null
+      ? `€${main.toFixed(2)} <span class="cl-variant-range">≈ $${(main * EUR_TO_USD).toFixed(2)}</span>`
+      : '—';
     html += `<div class="cl-variant-row">
       <span class="cl-variant-name">Cardmarket (${note})</span>
       <span><span class="cl-variant-price cm">${priceStr}</span></span>
@@ -3646,6 +3914,8 @@ function updateLightboxButtons() {
   const inWish    = wishlist.has(id);
   const inQueue   = isInPrintQueue('card', id);
 
+  const purchase = purchases[id];
+
   // Status pills under the card name show at-a-glance which lists this
   // card is currently in. Multiple are possible — these flags are independent.
   const status = document.getElementById('clStatus');
@@ -3653,9 +3923,45 @@ function updateLightboxButtons() {
     const pills = [];
     if (inBinder)  pills.push('<span class="cl-status-pill binder">📖 In current binder</span>');
     if (inCollect) pills.push('<span class="cl-status-pill collect">✓ Collected</span>');
+    if (purchase)  pills.push('<span class="cl-status-pill purchased">💰 Purchased</span>');
     if (inWish)    pills.push('<span class="cl-status-pill wish">★ Wishlisted</span>');
     if (inQueue)   pills.push('<span class="cl-status-pill print">🖨 In print queue</span>');
     status.innerHTML = pills.join('');
+  }
+
+  // Purchase info block — shows price, date, source, and a "savings vs market" hint
+  const purchaseInfoEl = document.getElementById('clPurchaseInfo');
+  if (purchaseInfoEl) {
+    if (purchase) {
+      const price = typeof purchase.price === 'number' ? purchase.price : null;
+      const market = getCardPrice(_clCard) || 0;
+      let savingsHtml = '';
+      if (price !== null && market > 0) {
+        const diff = market - price;
+        if (Math.abs(diff) >= 0.5) {
+          if (diff > 0) {
+            savingsHtml = `<span class="cl-purchase-savings">↘ saved $${diff.toFixed(2)} vs market ($${market.toFixed(2)})</span>`;
+          } else {
+            savingsHtml = `<span class="cl-purchase-overpaid">↗ $${(-diff).toFixed(2)} over market ($${market.toFixed(2)})</span>`;
+          }
+        }
+      }
+      const priceStr  = price !== null ? `<strong>$${price.toFixed(2)}</strong>` : '<em style="color:rgba(255,255,255,0.4)">no price recorded</em>';
+      const dateStr   = purchase.date   ? formatPurchaseDate(purchase.date) : '';
+      const sourceStr = purchase.source ? ` from ${escapeHtml(purchase.source)}` : '';
+      const notesStr  = purchase.notes  ? `<div style="font-size:10.5px;color:rgba(255,255,255,0.4);margin-top:4px;font-style:italic">${escapeHtml(purchase.notes)}</div>` : '';
+      purchaseInfoEl.innerHTML = `
+        <div class="cl-purchase-info">
+          <div class="cl-purchase-info-row">
+            <div>💰 Purchased ${priceStr}${dateStr ? ` on <strong>${escapeHtml(dateStr)}</strong>` : ''}${sourceStr}</div>
+            <a onclick="clOpenPurchase()" style="cursor:pointer">edit</a>
+          </div>
+          ${savingsHtml ? `<div style="margin-top:4px">${savingsHtml}</div>` : ''}
+          ${notesStr}
+        </div>`;
+    } else {
+      purchaseInfoEl.innerHTML = '';
+    }
   }
 
   const bb = document.getElementById('clBtnBinder');
@@ -3669,6 +3975,13 @@ function updateLightboxButtons() {
   const bw = document.getElementById('clBtnWish');
   bw.textContent = inWish ? '★ On Wishlist — Click to Remove' : '★ Add to Wishlist';
   bw.classList.toggle('active', inWish);
+
+  // Purchase button reflects whether a record exists
+  const bpur = document.getElementById('clBtnPurchase');
+  if (bpur) {
+    bpur.textContent = purchase ? '💰 Edit purchase record…' : '💰 Record purchase…';
+    bpur.classList.toggle('has-record', !!purchase);
+  }
 
   // Print queue toggle button
   const bp = document.getElementById('clBtnPrint');
@@ -3696,8 +4009,15 @@ function clToggleBinder() {
 }
 function clToggleCollect() {
   if (!_clCard) return;
-  collection.has(_clCard.id) ? collection.delete(_clCard.id) : collection.add(_clCard.id);
-  saveStorage(); refreshCardEl(_clCard.id); updateCounters(); updateLightboxButtons();
+  const id = _clCard.id;
+  if (collection.has(id)) {
+    collection.delete(id);
+  } else {
+    collection.add(id);
+    // Owning it means we no longer need to want it — drop from wishlist too.
+    wishlist.delete(id);
+  }
+  saveStorage(); refreshCardEl(id); updateCounters(); updateLightboxButtons();
 }
 function clToggleWish() {
   if (!_clCard) return;
@@ -3809,6 +4129,90 @@ function renderSetsModal(filterText) {
 // ── Print Queue ───────────────────────────────────────────────────
 // Items: { kind: 'card'|'fanart', id, name, imgSmall, imgLarge, cols, rows, crop?, set, number, artist }
 let printQueue = [];
+
+// ── Purchase tracking ─────────────────────────────────────────────
+// One purchase record per card id (the most common case). Stored as
+// { cardId: { price, date, source, notes } } in pkm_purchases.
+let purchases = {};
+function loadPurchases() {
+  try { purchases = JSON.parse(localStorage.getItem('pkm_purchases') || '{}'); }
+  catch(e) { purchases = {}; }
+}
+function savePurchases() {
+  try { localStorage.setItem('pkm_purchases', JSON.stringify(purchases)); } catch(e) {}
+}
+function formatPurchaseDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+  } catch(e) { return iso; }
+}
+
+let _purchaseCardId = null;
+function openPurchaseModal(cardId) {
+  _purchaseCardId = cardId;
+  const card = cardCache[cardId] || _clCard;
+  const existing = purchases[cardId];
+
+  document.getElementById('purchaseModalTitle').textContent = existing
+    ? `💰 Edit Purchase: ${card?.name || ''}`
+    : `💰 Record Purchase: ${card?.name || ''}`;
+
+  // Pre-fill: existing values if editing, else suggest today's date and current market price
+  const today = new Date().toISOString().slice(0, 10);
+  const marketPrice = card ? getCardPrice(card) : 0;
+  document.getElementById('purchasePrice').value  = existing?.price !== undefined && existing?.price !== null
+    ? existing.price
+    : (marketPrice > 0 ? marketPrice.toFixed(2) : '');
+  document.getElementById('purchaseDate').value   = existing?.date   || today;
+  document.getElementById('purchaseSource').value = existing?.source || '';
+  document.getElementById('purchaseNotes').value  = existing?.notes  || '';
+
+  document.getElementById('purchaseDeleteBtn').style.display = existing ? '' : 'none';
+  document.getElementById('purchaseModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('purchasePrice').focus(), 100);
+}
+function closePurchaseModal() {
+  document.getElementById('purchaseModal').style.display = 'none';
+  _purchaseCardId = null;
+}
+function confirmPurchase() {
+  if (!_purchaseCardId) return;
+  const rawPrice = document.getElementById('purchasePrice').value;
+  const price = rawPrice === '' ? null : parseFloat(rawPrice);
+  const date  = document.getElementById('purchaseDate').value || new Date().toISOString().slice(0,10);
+  const source = document.getElementById('purchaseSource').value.trim();
+  const notes  = document.getElementById('purchaseNotes').value.trim();
+
+  purchases[_purchaseCardId] = {
+    price: (typeof price === 'number' && !isNaN(price)) ? price : null,
+    date, source, notes,
+  };
+  savePurchases();
+
+  // Recording a purchase implies ownership — add to collection, remove from wishlist
+  const cardId = _purchaseCardId;
+  collection.add(cardId);
+  wishlist.delete(cardId);
+  saveStorage();
+  refreshCardEl(cardId);
+  updateCounters();
+  updateLightboxButtons();
+  closePurchaseModal();
+}
+function deletePurchase() {
+  if (!_purchaseCardId) return;
+  if (!confirm('Delete this purchase record? The card will stay in your collection.')) return;
+  delete purchases[_purchaseCardId];
+  savePurchases();
+  updateLightboxButtons();
+  closePurchaseModal();
+}
+// Open the purchase modal for the card currently in the lightbox
+function clOpenPurchase() {
+  if (!_clCard) return;
+  openPurchaseModal(_clCard.id);
+}
 
 // Whether to show the name/set info bar under each printed card.
 // Persisted in localStorage so the choice sticks between sessions.
@@ -4238,13 +4642,14 @@ function exportAllData() {
   saveStorage(); // snapshot first
   const data = {
     app: 'pokemon-binder-spread-builder',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     binders,
     activeBinderId,
     collection: [...collection],
     wishlist: [...wishlist],
     fanArtCache: _serializeFanArtCache(),
+    purchases,
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -4283,6 +4688,10 @@ function importData() {
       }
       if (Array.isArray(data.collection)) collection = new Set(data.collection);
       if (Array.isArray(data.wishlist))    wishlist   = new Set(data.wishlist);
+      if (data.purchases && typeof data.purchases === 'object') {
+        purchases = data.purchases;
+        savePurchases();
+      }
       if (data.fanArtCache && typeof data.fanArtCache === 'object') {
         for (const id in data.fanArtCache) {
           const e2 = data.fanArtCache[id];
@@ -4336,6 +4745,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ── Init ──────────────────────────────────────────────────────────
 loadStorage();
 loadPrintQueue();
+loadPurchases();
 updateCounters();
 updateActiveBinderName();
 updatePrintQueueTray();
