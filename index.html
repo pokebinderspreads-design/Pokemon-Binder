@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎴 Pokémon Binder Spread Builder</title>
+<title>🎴 PokéPages — build your binder, live</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -616,8 +616,8 @@ body {
 <!-- ── Header ── -->
 <header class="header">
   <div>
-    <h1>🎴 Pokémon Binder Spread Builder</h1>
-    <p>Search • Collect • Wishlist • Build your spread</p>
+    <h1>🎴 PokéPages</h1>
+    <p>Build your binder. Live.</p>
   </div>
   <div class="header-right">
     <div class="status-chips">
@@ -992,7 +992,7 @@ body {
 <!-- ── Welcome Modal ── -->
 <div id="welcomeModal" class="welcome-modal" onclick="if(event.target===this)dismissWelcome()">
   <div class="welcome-box">
-    <h2>👋 Welcome to the Pokémon Binder Spread Builder</h2>
+    <h2>👋 Welcome to PokéPages</h2>
     <p class="welcome-tagline">A no-account-needed tool for building virtual binder spreads with real Pokémon TCG cards — plus fan art, collection tracking, and print-at-home support.</p>
 
     <div class="welcome-features">
@@ -2795,7 +2795,7 @@ function printSpread() {
   const win = window.open('', '_blank');
   if (!win) { alert('Allow pop-ups to print the spread.'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Binder Spread</title>
+<title>PokéPages — Binder Spread</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   @page { size: landscape; margin: 0.3in; }
@@ -4641,7 +4641,7 @@ function updateActiveBinderName() {
 function exportAllData() {
   saveStorage(); // snapshot first
   const data = {
-    app: 'pokemon-binder-spread-builder',
+    app: 'pokepages',
     version: 2,
     exportedAt: new Date().toISOString(),
     binders,
@@ -4656,7 +4656,7 @@ function exportAllData() {
   const a = document.createElement('a');
   a.href = url;
   const stamp = new Date().toISOString().slice(0,10);
-  a.download = `pokemon-binder-backup-${stamp}.json`;
+  a.download = `pokepages-backup-${stamp}.json`;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
@@ -4673,7 +4673,10 @@ function importData() {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!data || typeof data !== 'object') throw new Error('Invalid backup file');
-      if (data.app && data.app !== 'pokemon-binder-spread-builder') {
+      // Accept both the new app id ('pokepages') and the legacy id
+      // ('pokemon-binder-spread-builder') so older backup files still import cleanly.
+      const knownAppIds = ['pokepages', 'pokemon-binder-spread-builder'];
+      if (data.app && !knownAppIds.includes(data.app)) {
         if (!confirm('This file may be from a different app. Import anyway?')) return;
       }
       if (!confirm('Importing will REPLACE your current binders, collection, wishlist, and fan art. Continue?')) return;
