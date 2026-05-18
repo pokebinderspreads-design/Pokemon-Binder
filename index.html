@@ -2200,7 +2200,7 @@ function _doPrintList(list) {
   @media print {
     .ctrl { display: none; }
     body { padding: 0; max-width: none; }
-    /* Belt-and-suspenders: modern `break-inside` + legacy `page-break-inside` + !important
+    /* Belt-and-suspenders: modern break-inside + legacy page-break-inside + !important
        so a row never gets split across a page boundary. */
     tbody tr, .print-item, .ph-print-card {
       break-inside: avoid !important;
@@ -3026,7 +3026,10 @@ function printPlaceholders() {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    /* Cross-browser page-break safety so a single card never gets split */
     break-inside: avoid;
+    page-break-inside: avoid;
+    -webkit-column-break-inside: avoid;
   }
   .print-item.size-1x { grid-column: span 1; grid-row: span 1; }
   .print-item.size-2w { grid-column: span 2; grid-row: span 1; }
@@ -3051,6 +3054,12 @@ function printPlaceholders() {
   @media print {
     .ctrl { display: none; }
     .grid { padding-top: 0; }
+    /* Force every grid item to stay whole inside one page */
+    .print-item {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+    }
   }
 </style>
 </head><body>
@@ -4707,7 +4716,9 @@ function printQueueNow() {
   .print-item {
     outline: 1px dashed #bbb; outline-offset: -1px;
     position: relative; overflow: hidden;
-    display: flex; flex-direction: column; break-inside: avoid;
+    display: flex; flex-direction: column;
+    break-inside: avoid; page-break-inside: avoid;
+    -webkit-column-break-inside: avoid;
   }
   .print-item.size-1x { grid-column: span 1; grid-row: span 1; }
   .print-item.size-2w { grid-column: span 2; grid-row: span 1; }
@@ -4726,6 +4737,11 @@ function printQueueNow() {
   @media print {
     .ctrl { display: none; }
     .grid { padding-top: 0; }
+    .print-item {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+    }
   }
 </style>
 </head><body>
