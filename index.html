@@ -271,7 +271,30 @@ body {
 .card-item:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 10px 28px rgba(0,0,0,0.55); z-index: 2; }
 .card-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .card-item.selected { box-shadow: 0 0 0 2.5px #c89cff, 0 6px 20px rgba(200,156,255,0.2); }
-.card-item.selected::after { content:'✓'; position: absolute; top:5px; right:5px; width:18px; height:18px; line-height:18px; background:#c89cff; border-radius:50%; font-size:9px; font-weight:900; color:#fff; text-align:center; }
+
+/* Always-visible binder toggle in the top-right of every card thumbnail.
+   Shows ＋ when not in binder, ✓ when in. Click to toggle. */
+.card-binder-toggle {
+  position: absolute; top: 5px; right: 5px; width: 24px; height: 24px;
+  border-radius: 50%; border: 1.5px solid rgba(200,156,255,0.55);
+  background: rgba(0,0,0,0.55); color: rgba(200,156,255,0.95);
+  font-size: 14px; line-height: 1; font-weight: 900;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  z-index: 3; transition: all 0.14s; font-family: inherit;
+  backdrop-filter: blur(2px);
+}
+.card-binder-toggle:hover {
+  background: rgba(200,156,255,0.45); border-color: #c89cff;
+  color: white; transform: scale(1.12);
+}
+.card-item.selected .card-binder-toggle {
+  background: #c89cff; color: #0e0e1d; border-color: #c89cff;
+}
+.card-item.selected .card-binder-toggle:hover {
+  background: rgba(255,100,100,0.92); border-color: rgba(255,100,100,1);
+  color: white;
+}
+.card-item.selected .card-binder-toggle:hover::after { content: ' ×'; font-size: 11px; margin-left: 1px; }
 .card-item.in-collection { outline: 1.5px solid rgba(111,207,151,0.45); }
 .card-item.in-wishlist { outline: 1.5px solid rgba(242,201,76,0.45); }
 .card-item.in-collection.in-wishlist { outline: 1.5px solid rgba(200,156,255,0.5); }
@@ -536,6 +559,49 @@ body {
 .cl-purchase-info-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .cl-purchase-savings { color: #6fcf97; font-size: 10px; }
 .cl-purchase-overpaid { color: rgba(255,140,140,0.9); font-size: 10px; }
+.cl-purchase-info .received-badge { display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 99px; font-weight: 700; letter-spacing: 0.4px; margin-left: 6px; vertical-align: middle; }
+.cl-purchase-info .received-badge.awaiting { background: rgba(255,193,84,0.15); color: #ffc154; border: 1px solid rgba(255,193,84,0.4); }
+.cl-purchase-info .received-badge.received { background: rgba(111,207,151,0.15); color: #6fcf97; border: 1px solid rgba(111,207,151,0.4); }
+
+/* Purchases modal */
+.status-chip.purchases { background: rgba(255,193,84,0.08); border-color: rgba(255,193,84,0.2); cursor: pointer; transition: background 0.14s; }
+.status-chip.purchases:hover { background: rgba(255,193,84,0.16); }
+.status-chip.purchases strong { color: #ffc154; }
+.status-chip.purchases .awaiting-badge { color: rgba(255,193,84,0.6); margin-left: 4px; font-size: 9.5px; }
+
+.purchases-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 130; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.purchases-box { background: #0e0e1d; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; width: min(880px, 96vw); max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
+.purchases-hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 10px; border-bottom: 1px solid rgba(255,255,255,0.07); gap: 10px; flex-wrap: wrap; }
+.purchases-hdr h3 { font-size: 15px; flex-shrink: 0; }
+.purchases-filter-row { display: flex; gap: 5px; padding: 8px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.purchases-summary { padding: 10px 18px; font-size: 11.5px; color: rgba(255,255,255,0.55); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 16px; flex-wrap: wrap; }
+.purchases-summary strong { color: rgba(255,255,255,0.85); }
+.purchases-summary .awaiting-amount { color: #ffc154; }
+.purchases-summary .received-amount { color: #6fcf97; }
+.purchases-tbl-wrap { flex: 1; overflow-y: auto; padding: 0 18px 12px; }
+.purchases-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.purchases-tbl thead { position: sticky; top: 0; background: #0e0e1d; z-index: 1; }
+.purchases-tbl thead th { text-align: left; padding: 9px 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.4); border-bottom: 1px solid rgba(255,255,255,0.08); }
+.purchases-tbl tbody td { padding: 8px 7px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.purchases-tbl tbody tr:hover { background: rgba(255,255,255,0.03); }
+.purchases-tbl .pthumb { width: 40px; }
+.purchases-tbl .pthumb img { width: 36px; height: 50px; object-fit: cover; border-radius: 3px; display: block; cursor: pointer; }
+.purchases-tbl .pname { font-weight: 600; color: rgba(255,255,255,0.85); cursor: pointer; }
+.purchases-tbl .pname:hover { color: #c89cff; }
+.purchases-tbl .pset { font-size: 10.5px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+.purchases-tbl .pprice { font-weight: 700; color: #6fcf97; font-variant-numeric: tabular-nums; }
+.purchases-tbl .pdate { font-size: 10.5px; color: rgba(255,255,255,0.55); }
+.purchases-tbl .psource { font-size: 10.5px; color: rgba(255,255,255,0.55); }
+.purchases-tbl .pnotes { font-size: 10px; color: rgba(255,255,255,0.4); font-style: italic; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-status-btn { font-size: 10.5px; padding: 4px 10px; border-radius: 99px; border: 1px solid; background: transparent; cursor: pointer; font-weight: 700; letter-spacing: 0.3px; transition: all 0.13s; white-space: nowrap; font-family: inherit; }
+.p-status-btn.awaiting { border-color: rgba(255,193,84,0.45); color: #ffc154; }
+.p-status-btn.awaiting:hover { background: rgba(255,193,84,0.15); }
+.p-status-btn.received { border-color: rgba(111,207,151,0.45); color: #6fcf97; }
+.p-status-btn.received:hover { background: rgba(255,80,80,0.12); border-color: rgba(255,80,80,0.45); color: rgba(255,140,140,0.9); }
+.p-status-btn.received:hover::after { content: ' · undo'; }
+.p-edit-btn { background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; color: rgba(255,255,255,0.55); font-size: 10.5px; padding: 3px 8px; cursor: pointer; margin-left: 5px; }
+.p-edit-btn:hover { background: rgba(200,156,255,0.15); border-color: rgba(200,156,255,0.4); color: #c89cff; }
+.purchases-empty { padding: 50px 20px; text-align: center; color: rgba(255,255,255,0.35); font-size: 12.5px; font-style: italic; }
 .cl-btn-purchase { background: rgba(255,193,84,0.14); border: 1px solid rgba(255,193,84,0.35); color: #ffc154; }
 .cl-btn-purchase:hover { background: rgba(255,193,84,0.25); }
 .cl-btn-purchase.has-record { background: rgba(255,193,84,0.2); }
@@ -624,6 +690,7 @@ body {
       <div class="status-chip purple" id="binderChip"><strong id="binderCount">0</strong> in binder</div>
       <div class="status-chip green" id="collectChip"><strong id="collectCount">0</strong> collected</div>
       <div class="status-chip gold"  id="wishChip"><strong id="wishCount">0</strong> wishlisted</div>
+      <div class="status-chip purchases" id="purchasesChip" onclick="openPurchasesModal()" title="View purchase history and mark items as received" style="display:none"><strong id="purchasesCount">0</strong> purchases<span class="awaiting-badge" id="purchasesAwaiting"></span></div>
       <span id="saveToast" style="font-size:10px;color:rgba(111,207,151,0.75);opacity:0;transition:opacity 0.6s;align-self:center;white-space:nowrap">💾 Saved</span>
     </div>
     <button class="btn btn-ghost" onclick="openBinderManager()" title="Switch between binders, create new, import / export"><span id="activeBinderName">📚 My Binder</span> ▾</button>
@@ -783,6 +850,9 @@ body {
       <input class="filter-input" id="artUrlInput" placeholder="Paste image URL here…" style="flex:1" onkeydown="if(event.key==='Enter')addCustomArt()">
       <button class="btn btn-ghost" onclick="addCustomArt()">Add ＋</button>
     </div>
+    <div class="custom-url-row" style="margin-bottom:6px">
+      <input class="filter-input" id="artTitleInput" placeholder="Title (e.g. &quot;Sleeping Eevee&quot; — used for search)" style="flex:1;font-size:11px" autocomplete="off">
+    </div>
     <div class="custom-url-row" style="margin-bottom:10px">
       <input class="filter-input" id="artistNameInput" placeholder="Artist name (shown as signature in binder)" style="flex:1;font-size:11px" autocomplete="off">
     </div>
@@ -909,6 +979,40 @@ body {
   <button class="binder-ctx-remove" onclick="binderCtxRemove()">✕ Remove from binder</button>
 </div>
 <div id="binderCtxBg" style="display:none;position:fixed;inset:0;z-index:109" onclick="closeBinderCtx()"></div>
+
+<!-- ── Purchases List Modal ── -->
+<div id="purchasesModal" class="purchases-modal" style="display:none" onclick="if(event.target===this)closePurchasesModal()">
+  <div class="purchases-box">
+    <div class="purchases-hdr">
+      <h3>💰 Purchase History</h3>
+      <div class="purchases-filter-row" style="border-bottom:none;padding:0;flex:1;justify-content:flex-end">
+        <button class="vf-btn active" id="pmFilter-all"      onclick="setPurchasesFilter('all')">All</button>
+        <button class="vf-btn" id="pmFilter-awaiting" onclick="setPurchasesFilter('awaiting')">⏳ Awaiting</button>
+        <button class="vf-btn green" id="pmFilter-received" onclick="setPurchasesFilter('received')">✓ Received</button>
+      </div>
+      <button class="panel-close" onclick="closePurchasesModal()">✕</button>
+    </div>
+    <div class="purchases-summary" id="purchasesSummary"></div>
+    <div class="purchases-tbl-wrap">
+      <table class="purchases-tbl">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Card</th>
+            <th>Set / Source</th>
+            <th>Price</th>
+            <th>Purchased</th>
+            <th>Notes</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="purchasesTbody"></tbody>
+      </table>
+      <div id="purchasesEmpty" class="purchases-empty" style="display:none">No purchases match this filter.</div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Purchase Tracking Modal ── -->
 <div id="purchaseModal" class="ph-modal" style="display:none" onclick="if(event.target===this)closePurchaseModal()">
@@ -1078,14 +1182,6 @@ body {
         <button class="btn btn-ghost" onclick="importData()">📥 Import from file</button>
       </div>
       <p class="bm-tip">Export downloads <strong>everything</strong> — all binders, your collection, wishlist, and fan-art URLs — to one JSON file you can save anywhere (Google Drive, iCloud, email, USB). Import restores from that file. Keep regular backups so your work survives browser data clears.</p>
-
-      <div class="bm-divider"></div>
-      <label class="bm-section-lbl">API Key (optional)</label>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input type="password" class="filter-input" id="apiKeyInput" placeholder="Paste your pokemontcg.io key…" style="flex:1" autocomplete="off">
-        <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
-      </div>
-      <p class="bm-tip">Without a key, the app shares a global anonymous rate limit (~30k requests/day across all users). With a free key from <a href="https://dev.pokemontcg.io" target="_blank" rel="noopener">dev.pokemontcg.io</a>, you get <strong>20k/day per key</strong> — useful if you share this app with friends. Sign up takes ~30 seconds. Your key is stored only in your browser. <span id="apiKeyStatus" style="display:block;margin-top:4px"></span></p>
 
       <div class="bm-divider"></div>
       <button class="btn btn-ghost" style="width:100%" onclick="showWelcome()">❓ Show welcome guide again</button>
@@ -1740,39 +1836,6 @@ function hasAnyFilter() {
 }
 
 // ── Search & Load ─────────────────────────────────────────────────
-// ── API key support ───────────────────────────────────────────────
-// Optional. Without a key, the app shares an anonymous rate limit pool.
-// With a key from dev.pokemontcg.io, the user gets their own 20k/day.
-function getApiKey() { return localStorage.getItem('pkm_api_key') || ''; }
-function getApiHeaders() {
-  const k = getApiKey();
-  return k ? { 'X-Api-Key': k } : {};
-}
-function saveApiKey() {
-  const input = document.getElementById('apiKeyInput');
-  if (!input) return;
-  const key = input.value.trim();
-  if (key) {
-    localStorage.setItem('pkm_api_key', key);
-  } else {
-    localStorage.removeItem('pkm_api_key');
-  }
-  updateApiKeyStatus();
-  // Soft-confirm via the status line; no alert needed
-}
-function updateApiKeyStatus() {
-  const stat = document.getElementById('apiKeyStatus');
-  if (!stat) return;
-  const k = getApiKey();
-  if (k) {
-    stat.style.color = '#6fcf97';
-    stat.textContent = `✓ Using personal key (last 4: …${k.slice(-4)})`;
-  } else {
-    stat.style.color = 'rgba(255,255,255,0.4)';
-    stat.textContent = 'No key set — using shared anonymous limit.';
-  }
-}
-
 // Fetch the master list of sets once and feed it into the Set Name
 // autocomplete. Cached in localStorage for 24h to skip repeat hits.
 // Pass forceRefresh=true to bypass the cache (e.g. when the user clicks ↻).
@@ -1789,7 +1852,7 @@ async function loadSetList(forceRefresh = false) {
   }
   if (!sets) {
     try {
-      const res = await fetch('https://api.pokemontcg.io/v2/sets?pageSize=500&orderBy=-releaseDate', { headers: getApiHeaders() });
+      const res = await fetch('https://api.pokemontcg.io/v2/sets?pageSize=500&orderBy=-releaseDate');
       if (!res.ok) return;
       const data = await res.json();
       sets = (data.data || []).map(s => ({ name: s.name, series: s.series, releaseDate: s.releaseDate }));
@@ -1816,7 +1879,7 @@ async function fetchPage(q, page) {
   const apiOrder = isPriceSort ? '-set.releaseDate' : sortBy;
   const params = new URLSearchParams({ pageSize: PAGE_SIZE, page, orderBy: apiOrder });
   if (q) params.set('q', q);
-  const res = await fetch(`${API}?${params}`, { headers: getApiHeaders() });
+  const res = await fetch(`${API}?${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return await res.json();
 }
@@ -2137,7 +2200,15 @@ function _doPrintList(list) {
   @media print {
     .ctrl { display: none; }
     body { padding: 0; max-width: none; }
-    tbody tr { break-inside: avoid; }
+    /* Belt-and-suspenders: modern `break-inside` + legacy `page-break-inside` + !important
+       so a row never gets split across a page boundary. */
+    tbody tr, .print-item, .ph-print-card {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+    }
+    thead { display: table-header-group; } /* repeat table header on each printed page */
+    tfoot { display: table-footer-group; }
     h1 { margin-top: 0; }
   }
 </style>
@@ -2379,7 +2450,20 @@ function addCardEl(card, grid, isAppend) {
   });
   el.addEventListener('dragend', () => el.classList.remove('dragging-out'));
 
-  el.appendChild(img); el.appendChild(badges); el.appendChild(hover);
+  // Always-visible binder toggle (top-right corner). Lets users add or
+  // remove a card from the current binder with a single click from the grid
+  // — no hover required, useful especially in the Wishlist view.
+  const binderTog = document.createElement('button');
+  binderTog.className = 'card-binder-toggle';
+  binderTog.type = 'button';
+  binderTog.textContent = inBinder ? '✓' : '＋';
+  binderTog.title = inBinder ? 'In binder — click to remove' : 'Add to binder';
+  binderTog.onclick = (e) => {
+    e.stopPropagation();
+    toggleCard(card);
+  };
+
+  el.appendChild(img); el.appendChild(badges); el.appendChild(binderTog); el.appendChild(hover);
   grid.appendChild(el);
 }
 
@@ -3101,9 +3185,10 @@ function addCustomArt() {
   const url = document.getElementById('artUrlInput').value.trim();
   if (!url) return;
   const artistName = (document.getElementById('artistNameInput')?.value || '').trim();
+  const title = (document.getElementById('artTitleInput')?.value || '').trim() || 'Fan Art';
   const faId = `custom-${Date.now()}`;
   const item = { id: faId, type:'fanart', cols: pasteCols, rows: pasteRows,
-    data:{ title:'Fan Art', author: artistName, url, thumb:url } };
+    data:{ title, author: artistName, url, thumb:url } };
   fanArtCache[faId] = item;
   binder.push(item);
   updateBinderUI();
@@ -3312,9 +3397,16 @@ function toggleCard(card) {
   if (idx >= 0) binder[idx] = makeEmptySlot();  // preserve slot position
   else binder.push(item);
   const inBinder = binder.some(b => b.id === card.id);
-  // Sync card grid
+  // Sync card grid (both the .selected outline and the floating +/✓ button)
   const el = document.getElementById(`card-${card.id}`);
-  if (el) el.classList.toggle('selected', inBinder);
+  if (el) {
+    el.classList.toggle('selected', inBinder);
+    const tog = el.querySelector('.card-binder-toggle');
+    if (tog) {
+      tog.textContent = inBinder ? '✓' : '＋';
+      tog.title = inBinder ? 'In binder — click to remove' : 'Add to binder';
+    }
+  }
   // Sync binder quick-add button
   const bb = document.getElementById(`binder-btn-${card.id}`);
   if (bb) { bb.classList.toggle('in-binder', inBinder); bb.textContent = inBinder ? '✓ In Binder' : '＋ Add to Binder'; }
@@ -3950,10 +4042,13 @@ function updateLightboxButtons() {
       const dateStr   = purchase.date   ? formatPurchaseDate(purchase.date) : '';
       const sourceStr = purchase.source ? ` from ${escapeHtml(purchase.source)}` : '';
       const notesStr  = purchase.notes  ? `<div style="font-size:10.5px;color:rgba(255,255,255,0.4);margin-top:4px;font-style:italic">${escapeHtml(purchase.notes)}</div>` : '';
+      const receivedBadge = purchase.received
+        ? `<span class="received-badge received">✓ Received${purchase.receivedDate ? ' ' + formatPurchaseDate(purchase.receivedDate) : ''}</span>`
+        : `<span class="received-badge awaiting">⏳ Awaiting</span>`;
       purchaseInfoEl.innerHTML = `
         <div class="cl-purchase-info">
           <div class="cl-purchase-info-row">
-            <div>💰 Purchased ${priceStr}${dateStr ? ` on <strong>${escapeHtml(dateStr)}</strong>` : ''}${sourceStr}</div>
+            <div>💰 Purchased ${priceStr}${dateStr ? ` on <strong>${escapeHtml(dateStr)}</strong>` : ''}${sourceStr}${receivedBadge}</div>
             <a onclick="clOpenPurchase()" style="cursor:pointer">edit</a>
           </div>
           ${savingsHtml ? `<div style="margin-top:4px">${savingsHtml}</div>` : ''}
@@ -4198,6 +4293,7 @@ function confirmPurchase() {
   refreshCardEl(cardId);
   updateCounters();
   updateLightboxButtons();
+  updatePurchasesChip();
   closePurchaseModal();
 }
 function deletePurchase() {
@@ -4206,12 +4302,165 @@ function deletePurchase() {
   delete purchases[_purchaseCardId];
   savePurchases();
   updateLightboxButtons();
+  updatePurchasesChip();
   closePurchaseModal();
 }
 // Open the purchase modal for the card currently in the lightbox
 function clOpenPurchase() {
   if (!_clCard) return;
   openPurchaseModal(_clCard.id);
+}
+
+// ── Purchases list modal ──────────────────────────────────────────
+let _purchasesFilter = 'all';
+
+function updatePurchasesChip() {
+  const chip = document.getElementById('purchasesChip');
+  if (!chip) return;
+  const entries = Object.values(purchases || {});
+  const total = entries.length;
+  const awaiting = entries.filter(p => !p.received).length;
+  if (total === 0) {
+    chip.style.display = 'none';
+    return;
+  }
+  chip.style.display = '';
+  document.getElementById('purchasesCount').textContent = total;
+  const awaitEl = document.getElementById('purchasesAwaiting');
+  awaitEl.textContent = awaiting ? ` · ${awaiting} awaiting` : '';
+}
+
+function openPurchasesModal() {
+  _purchasesFilter = 'all';
+  ['all','awaiting','received'].forEach(f => {
+    const el = document.getElementById('pmFilter-'+f);
+    if (el) el.classList.toggle('active', f === 'all');
+  });
+  renderPurchasesModal();
+  document.getElementById('purchasesModal').style.display = 'flex';
+}
+function closePurchasesModal() {
+  document.getElementById('purchasesModal').style.display = 'none';
+}
+function setPurchasesFilter(f) {
+  _purchasesFilter = f;
+  ['all','awaiting','received'].forEach(x => {
+    const el = document.getElementById('pmFilter-'+x);
+    if (el) el.classList.toggle('active', x === f);
+  });
+  renderPurchasesModal();
+}
+
+function renderPurchasesModal() {
+  const tbody  = document.getElementById('purchasesTbody');
+  const empty  = document.getElementById('purchasesEmpty');
+  const summary = document.getElementById('purchasesSummary');
+  if (!tbody) return;
+
+  // Build a sorted list of [cardId, purchase] pairs, newest purchase date first
+  const entries = Object.entries(purchases || {})
+    .filter(([_, p]) => {
+      if (_purchasesFilter === 'awaiting') return !p.received;
+      if (_purchasesFilter === 'received') return !!p.received;
+      return true;
+    })
+    .sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
+
+  // Summary stats — totals across ALL purchases (not filtered) so the
+  // numbers don't jump when the user changes the filter.
+  const allEntries = Object.values(purchases || {});
+  const totalSpent = allEntries.reduce((s, p) => s + (typeof p.price === 'number' ? p.price : 0), 0);
+  const awaitingSum = allEntries.filter(p => !p.received).reduce((s, p) => s + (typeof p.price === 'number' ? p.price : 0), 0);
+  const receivedSum = totalSpent - awaitingSum;
+  const awaitingCnt = allEntries.filter(p => !p.received).length;
+  const receivedCnt = allEntries.length - awaitingCnt;
+  summary.innerHTML = `
+    <span><strong>${allEntries.length}</strong> total · <strong>$${totalSpent.toFixed(2)}</strong> spent</span>
+    <span class="awaiting-amount">⏳ <strong>${awaitingCnt}</strong> awaiting (<strong>$${awaitingSum.toFixed(2)}</strong>)</span>
+    <span class="received-amount">✓ <strong>${receivedCnt}</strong> received (<strong>$${receivedSum.toFixed(2)}</strong>)</span>
+  `;
+
+  if (!entries.length) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    empty.textContent = _purchasesFilter === 'all'
+      ? 'No purchases recorded yet. Use the 💰 Record purchase button in the expanded card view to add one.'
+      : `No ${_purchasesFilter} purchases.`;
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = entries.map(([cardId, p]) => {
+    const card = cardCache[cardId];
+    const name = card?.name || '(unknown card)';
+    const setName = card?.set?.name || '';
+    const number = card?.number || '';
+    const img = card?.images?.small || '';
+    const priceStr = typeof p.price === 'number' ? `$${p.price.toFixed(2)}` : '—';
+    const dateStr = p.date ? formatPurchaseDate(p.date) : '—';
+    const safeId = cardId.replace(/'/g, "\\'");
+    let statusHtml;
+    if (p.received) {
+      const rDate = p.receivedDate ? ` ${formatPurchaseDate(p.receivedDate)}` : '';
+      statusHtml = `<button class="p-status-btn received" onclick="unmarkPurchaseReceived('${safeId}')" title="Click to undo">✓ Received${rDate}</button>`;
+    } else {
+      statusHtml = `<button class="p-status-btn awaiting" onclick="markPurchaseReceived('${safeId}')">⏳ Mark received</button>`;
+    }
+    return `<tr>
+      <td class="pthumb"><img src="${escapeHtml(img)}" alt="${escapeHtml(name)}" onclick="openLightboxById('${safeId}')"></td>
+      <td>
+        <div class="pname" onclick="openLightboxById('${safeId}')">${escapeHtml(name)}${number ? ` <span style="color:rgba(255,255,255,0.4);font-weight:400">#${escapeHtml(number)}</span>` : ''}</div>
+        <div class="pset">${escapeHtml(setName)}</div>
+      </td>
+      <td><div class="psource">${escapeHtml(p.source || '—')}</div></td>
+      <td class="pprice">${priceStr}</td>
+      <td class="pdate">${escapeHtml(dateStr)}</td>
+      <td class="pnotes" title="${escapeHtml(p.notes || '')}">${escapeHtml(p.notes || '')}</td>
+      <td>${statusHtml}</td>
+      <td><button class="p-edit-btn" onclick="openPurchaseFromList('${safeId}')">edit</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function markPurchaseReceived(cardId) {
+  const p = purchases[cardId];
+  if (!p) return;
+  const today = new Date().toISOString().slice(0,10);
+  const input = prompt('Received on what date? (YYYY-MM-DD — leave as today if just received)', today);
+  if (input === null) return; // canceled
+  p.received = true;
+  p.receivedDate = input.trim() || today;
+  savePurchases();
+  renderPurchasesModal();
+  updatePurchasesChip();
+  if (_clCard?.id === cardId) updateLightboxButtons();
+}
+
+function unmarkPurchaseReceived(cardId) {
+  const p = purchases[cardId];
+  if (!p) return;
+  if (!confirm('Move this purchase back to "Awaiting"?')) return;
+  delete p.received;
+  delete p.receivedDate;
+  savePurchases();
+  renderPurchasesModal();
+  updatePurchasesChip();
+  if (_clCard?.id === cardId) updateLightboxButtons();
+}
+
+// Helpers used by row clicks
+function openLightboxById(cardId) {
+  const card = cardCache[cardId];
+  if (!card) {
+    alert('Card details not loaded — open the card from a search or your collection view first.');
+    return;
+  }
+  closePurchasesModal();
+  openLightbox(card);
+}
+function openPurchaseFromList(cardId) {
+  closePurchasesModal();
+  openPurchaseModal(cardId);
 }
 
 // Whether to show the name/set info bar under each printed card.
@@ -4503,10 +4752,6 @@ function clTogglePrintQueue() {
 // ── Binder Manager ────────────────────────────────────────────────
 function openBinderManager() {
   renderBinderManagerList();
-  // Populate the API key field with whatever's saved so the user can see/edit it
-  const apiInput = document.getElementById('apiKeyInput');
-  if (apiInput) apiInput.value = getApiKey();
-  updateApiKeyStatus();
   document.getElementById('binderManagerModal').style.display = 'flex';
 }
 function closeBinderManager() {
@@ -4749,6 +4994,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 loadStorage();
 loadPrintQueue();
 loadPurchases();
+updatePurchasesChip();
 updateCounters();
 updateActiveBinderName();
 updatePrintQueueTray();
