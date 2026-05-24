@@ -3142,7 +3142,7 @@ function printPlaceholders() {
   // everything into the top-left corner). 2 rows = 6 pockets/page.
   const COLS = 3, ROWS = printerSafe ? 2 : 3;
   const pageMargin = printerSafe ? '0' : '0.25in';
-  const sheetPad   = printerSafe ? 'padding: 1in 0 0.5in;' : '';
+  const sheetPad   = printerSafe ? 'padding: 1.5in 0 0.75in;' : '';
   const entries = items.map(item => ({
     item,
     w: Math.min(item.cols || 1, COLS),
@@ -4888,7 +4888,7 @@ function printQueueNow() {
   // dialog set to Margins:None), 6/page. Dense: 0.25in margins, 9/page.
   const COLS = 3, ROWS = printerSafe ? 2 : 3;
   const pageMargin = printerSafe ? '0' : '0.25in';
-  const sheetPad   = printerSafe ? 'padding: 1in 0 0.5in;' : '';
+  const sheetPad   = printerSafe ? 'padding: 1.5in 0 0.75in;' : '';
   const entries = printQueue.map(it => ({
     item: it,
     w: Math.min(it.cols || 1, COLS),
