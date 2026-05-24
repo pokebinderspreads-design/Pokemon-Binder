@@ -1163,6 +1163,10 @@ body {
         <input type="checkbox" id="pqShowInfo" onchange="setPrintShowInfo(this.checked)" style="accent-color:#c89cff;cursor:pointer">
         Show card info
       </label>
+      <label style="font-size:11px;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none" title="Bigger 0.5in margins, 6 cards per page. Turn this on if the top card gets cut off on your printer.">
+        <input type="checkbox" id="pqPrinterSafe" onchange="setPrinterSafe(this.checked)" style="accent-color:#c89cff;cursor:pointer">
+        Printer-safe margins
+      </label>
       <div class="pq-footer-btns">
         <button class="btn btn-ghost" onclick="clearPrintQueue()">Clear queue</button>
         <button class="btn btn-primary" onclick="printQueueNow()">🖨 Print all</button>
@@ -1214,7 +1218,11 @@ body {
       </label>
     </div>
     <div id="phCardList" class="ph-card-list"></div>
-    <div class="ph-modal-footer">
+    <div class="ph-modal-footer" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <label style="font-size:11px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none" title="Bigger 0.5in margins, 6 cards per page. Turn this on if the top card gets cut off on your printer.">
+        <input type="checkbox" id="phPrinterSafe" onchange="setPrinterSafe(this.checked)" style="accent-color:#c89cff;cursor:pointer">
+        🖨 Printer-safe margins (6 per page)
+      </label>
       <button class="btn btn-primary" onclick="printPlaceholders()">🖨 Print Selected</button>
     </div>
   </div>
@@ -2857,8 +2865,12 @@ function printFanArtById(faId, cols, rows, e) {
 }
 
 function printFanArt(imageUrl, artist, cols, rows, cropData) {
-  const w = (2.5 * cols).toFixed(1);
-  const h = (3.5 * rows).toFixed(1);
+  // Fan art prints slightly larger than a standard card — nicer for display and
+  // gives the wider white border room. (At this size it's a touch bigger than a
+  // standard 2.5"×3.5" binder pocket.)
+  const FA_SCALE = 1.1;
+  const w = (2.5 * cols * FA_SCALE).toFixed(2);
+  const h = (3.5 * rows * FA_SCALE).toFixed(2);
   const cropX  = cropData?.cropX  !== undefined ? cropData.cropX  : 50;
   const cropY  = cropData?.cropY  !== undefined ? cropData.cropY  : 50;
   const zoom   = cropData?.cropZoom || 1;
@@ -2867,10 +2879,7 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
   const topPct  = (cropY * (1 - zoom)).toFixed(3);
   const wPct    = (zoom * 100).toFixed(1);
   const imgStyle = `position:absolute;width:${wPct}%;height:${wPct}%;left:${leftPct}%;top:${topPct}%;object-fit:cover;object-position:${cropX}% ${cropY}%;max-width:none;max-height:none;`;
-  const sizeLabel = cols===1&&rows===1 ? '1 pocket (2.5" × 3.5")'
-    : cols===2&&rows===1 ? '2 wide (5" × 3.5")'
-    : cols===1&&rows===2 ? '2 tall (2.5" × 7")'
-    : '4 pockets (5" × 7")';
+  const sizeLabel = `${w}" × ${h}"`;
   // Stamp the artist signature onto the printed art (cursive, bottom-right) —
   // matches the binder view and respects the global show-signature toggle.
   const showSig = showArtistSig && artist && artist !== 'Unknown artist';
@@ -2910,7 +2919,7 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
   <button onclick="window.print()">🖨 Print</button>
   <span class="tip">⚠ In your print dialog, set Scale to 100% (no fit / no shrink-to-page) for exact binder slot dimensions</span>
 </div>
-<div style="width:${w}in;height:${h}in;overflow:hidden;position:relative;border:0.05in solid #fff;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+<div style="width:${w}in;height:${h}in;overflow:hidden;position:relative;border:0.1in solid #fff;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
   <img src="${imageUrl}" style="${imgStyle}" />
   ${sigHtml}
 </div>
@@ -3058,6 +3067,7 @@ function openPlaceholderPrint() {
   updatePhCount();
   // Sync the info-bar toggle with the persisted preference
   const ph = document.getElementById('phShowInfo'); if (ph) ph.checked = printShowInfo;
+  const phps = document.getElementById('phPrinterSafe'); if (phps) phps.checked = printerSafe;
   document.getElementById('phModal').style.display = 'flex';
 }
 function closePhModal() { document.getElementById('phModal').style.display = 'none'; }
@@ -3124,9 +3134,11 @@ function printPlaceholders() {
     .map(el => binder[+el.dataset.idx])
     .filter(Boolean);
 
-  // Letter portrait with 0.2in margins -> 8.1in x 10.6in printable area.
-  // 3 pockets wide (7.5in) by 3 pockets tall (10.5in) fit per page.
-  const COLS = 3, ROWS = 3;
+  // Dense: 0.25in margins, 3 rows (9 pockets/page) — tightest fit, but needs a
+  // printer that prints within 0.25in of the edge. Printer-safe: 0.5in margins,
+  // 2 rows (6 pockets/page) — clears any printer's non-printable edge.
+  const COLS = 3, ROWS = printerSafe ? 2 : 3;
+  const pageMargin = printerSafe ? '0.5in' : '0.25in';
   const entries = items.map(item => ({
     item,
     w: Math.min(item.cols || 1, COLS),
@@ -3177,7 +3189,7 @@ function printPlaceholders() {
 <title>Batch Print</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: letter; margin: 0.25in; }
+  @page { size: letter; margin: ${pageMargin}; }
   body { font-family: system-ui; background: white; }
   /* Sticky (not fixed): stays visible while scrolling the preview, but does
      NOT repeat on every printed page the way a fixed bar can. */
@@ -3221,7 +3233,7 @@ function printPlaceholders() {
   .grid.hide-info .print-info { display: none; }
   .grid.hide-info .print-img { object-position: center center; }
 
-  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; border: 0.05in solid #fff; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; border: 0.1in solid #fff; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .fa-sig {
     position: absolute; bottom: 5px; right: 8px;
     font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
@@ -3248,7 +3260,7 @@ function printPlaceholders() {
 </head><body>
 <div class="ctrl">
   <button onclick="window.print()">🖨 Print / Save PDF</button>
-  <span>Print at 100% scale (no "fit to page") · ${items.length} item${items.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
+  <span>Print at 100% scale (no "fit to page") · ${items.length} item${items.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printerSafe ? ' · Printer-safe margins (6/page)' : ''}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
 </div>
 ${pagesHTML}
 </body></html>`);
@@ -4741,6 +4753,18 @@ function setPrintShowInfo(val) {
   const pq = document.getElementById('pqShowInfo'); if (pq) pq.checked = printShowInfo;
 }
 
+// Printer-safe mode: bigger 0.5in margins + 6 true-size cards per page (2 rows)
+// instead of the dense 9-up. The dense 9-up leaves only 0.25in margins, which
+// is tighter than many printers' physical non-printable edge, so the top row
+// gets clipped on paper even though print-preview / print-to-PDF look fine.
+let printerSafe = localStorage.getItem('pkm_printer_safe') === 'true';
+function setPrinterSafe(val) {
+  printerSafe = !!val;
+  localStorage.setItem('pkm_printer_safe', printerSafe ? 'true' : 'false');
+  const ph = document.getElementById('phPrinterSafe'); if (ph) ph.checked = printerSafe;
+  const pq = document.getElementById('pqPrinterSafe'); if (pq) pq.checked = printerSafe;
+}
+
 function loadPrintQueue() {
   try { printQueue = JSON.parse(localStorage.getItem('pkm_pq') || '[]'); } catch(e) { printQueue = []; }
 }
@@ -4806,6 +4830,7 @@ function updatePrintQueueTray() {
 function openPrintQueue() {
   renderPrintQueueModalList();
   const pq = document.getElementById('pqShowInfo'); if (pq) pq.checked = printShowInfo;
+  const pqps = document.getElementById('pqPrinterSafe'); if (pqps) pqps.checked = printerSafe;
   document.getElementById('pqModal').style.display = 'flex';
 }
 function closePrintQueue() {
@@ -4850,7 +4875,9 @@ function renderPrintQueueModalList() {
 function printQueueNow() {
   if (!printQueue.length) { alert('Print queue is empty.'); return; }
 
-  const COLS = 3, ROWS = 3;
+  // Printer-safe (0.5in margins, 6/page) vs dense (0.25in margins, 9/page).
+  const COLS = 3, ROWS = printerSafe ? 2 : 3;
+  const pageMargin = printerSafe ? '0.5in' : '0.25in';
   const entries = printQueue.map(it => ({
     item: it,
     w: Math.min(it.cols || 1, COLS),
@@ -4899,7 +4926,7 @@ function printQueueNow() {
 <title>Print Queue</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: letter; margin: 0.25in; }
+  @page { size: letter; margin: ${pageMargin}; }
   body { font-family: system-ui; background: white; }
   /* Sticky (not fixed): visible while scrolling, but never repeats per page. */
   .ctrl { position: sticky; top: 0; background: rgba(14,14,29,0.96); color: white;
@@ -4932,7 +4959,7 @@ function printQueueNow() {
   /* Toggle: hide the info bar entirely and let the image use the whole pocket. */
   .grid.hide-info .print-info { display: none; }
   .grid.hide-info .print-img { object-position: center center; }
-  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; border: 0.05in solid #fff; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; border: 0.1in solid #fff; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .fa-sig {
     position: absolute; bottom: 5px; right: 8px;
     font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
@@ -4958,7 +4985,7 @@ function printQueueNow() {
 </head><body>
 <div class="ctrl">
   <button onclick="window.print()">🖨 Print / Save PDF</button>
-  <span>Print at 100% scale (no "fit to page") · ${printQueue.length} item${printQueue.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
+  <span>Print at 100% scale (no "fit to page") · ${printQueue.length} item${printQueue.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printerSafe ? ' · Printer-safe margins (6/page)' : ''}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
 </div>
 ${pagesHTML}
 </body></html>`);
