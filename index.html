@@ -3134,13 +3134,15 @@ function printPlaceholders() {
     .map(el => binder[+el.dataset.idx])
     .filter(Boolean);
 
-  // Dense: 0.25in margins, 3 rows (9 pockets/page) — tightest fit, but needs a
-  // printer that prints within 0.25in of the edge. Printer-safe: 0.6in top/bottom
-  // + 0.5in side margins, 2 rows (6 pockets/page) — clears any printer's
-  // non-printable edge with room to spare. (Sides stay 0.5in so the 7.5in-wide
-  // 3-column grid still fits.)
+  // Dense: 0.25in @page margins, 3 rows (9 pockets/page) — tightest fit, needs a
+  // printer that prints within 0.25in of the edge.
+  // Printer-safe: @page margin 0 + the grid is CENTERED and PADDED via CSS, so
+  // the safe margins live in the content itself. That survives a print dialog
+  // set to "Margins: None" (which zeroes @page margins and would otherwise jam
+  // everything into the top-left corner). 2 rows = 6 pockets/page.
   const COLS = 3, ROWS = printerSafe ? 2 : 3;
-  const pageMargin = printerSafe ? '0.6in 0.5in' : '0.25in';
+  const pageMargin = printerSafe ? '0' : '0.25in';
+  const sheetPad   = printerSafe ? 'padding: 0.5in 0;' : '';
   const entries = items.map(item => ({
     item,
     w: Math.min(item.cols || 1, COLS),
@@ -3249,7 +3251,10 @@ function printPlaceholders() {
 
   @media print {
     .ctrl { display: none !important; }
-    .sheet { width: auto; margin: 0; break-inside: avoid; page-break-inside: avoid; }
+    /* Center the grid horizontally and pad the top/bottom so the safe margins
+       live in the content itself — survives a print dialog set to Margins:None
+       (which would otherwise jam everything into the top-left corner). */
+    .sheet { width: 7.5in; margin: 0 auto; ${sheetPad} break-inside: avoid; page-break-inside: avoid; }
     .sheet:not(:first-child) { break-before: page; page-break-before: always; }
     .sheet + .sheet { margin-top: 0; }
     .print-item {
@@ -4879,9 +4884,11 @@ function renderPrintQueueModalList() {
 function printQueueNow() {
   if (!printQueue.length) { alert('Print queue is empty.'); return; }
 
-  // Printer-safe (0.6in/0.5in margins, 6/page) vs dense (0.25in margins, 9/page).
+  // Printer-safe: @page margin 0 + centered/padded content (robust to a print
+  // dialog set to Margins:None), 6/page. Dense: 0.25in margins, 9/page.
   const COLS = 3, ROWS = printerSafe ? 2 : 3;
-  const pageMargin = printerSafe ? '0.6in 0.5in' : '0.25in';
+  const pageMargin = printerSafe ? '0' : '0.25in';
+  const sheetPad   = printerSafe ? 'padding: 0.5in 0;' : '';
   const entries = printQueue.map(it => ({
     item: it,
     w: Math.min(it.cols || 1, COLS),
@@ -4976,7 +4983,10 @@ function printQueueNow() {
   }
   @media print {
     .ctrl { display: none !important; }
-    .sheet { width: auto; margin: 0; break-inside: avoid; page-break-inside: avoid; }
+    /* Center the grid horizontally and pad the top/bottom so the safe margins
+       live in the content itself — survives a print dialog set to Margins:None
+       (which would otherwise jam everything into the top-left corner). */
+    .sheet { width: 7.5in; margin: 0 auto; ${sheetPad} break-inside: avoid; page-break-inside: avoid; }
     .sheet:not(:first-child) { break-before: page; page-break-before: always; }
     .sheet + .sheet { margin-top: 0; }
     .print-item {
