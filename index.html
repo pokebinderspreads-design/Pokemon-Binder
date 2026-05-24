@@ -637,9 +637,9 @@ body {
 .fanart-signature {
   position: absolute; bottom: 4px; right: 7px;
   font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
-  font-size: 12px; color: rgba(255,255,255,0.92); font-style: italic;
+  font-size: 12px; color: #000; font-style: italic;
   letter-spacing: 0.4px; font-weight: 500;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 5px rgba(0,0,0,0.55);
+  background: #fff; padding: 2px 7px; border-radius: 2px;
   z-index: 2; pointer-events: none;
   max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -2796,9 +2796,9 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
   .fa-sig {
     position:absolute; bottom:5px; right:8px;
     font-family:'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
-    font-size:13px; color:rgba(255,255,255,0.95); font-style:italic;
+    font-size:13px; color:#000; font-style:italic;
     letter-spacing:0.4px; font-weight:500;
-    text-shadow:0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.6);
+    background:#fff; padding:2px 7px; border-radius:2px;
     z-index:2; pointer-events:none;
     max-width:75%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     -webkit-print-color-adjust:exact; print-color-adjust:exact;
@@ -2812,7 +2812,7 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
   <button onclick="window.print()">🖨 Print</button>
   <span class="tip">⚠ In your print dialog, set Scale to 100% (no fit / no shrink-to-page) for exact binder slot dimensions</span>
 </div>
-<div style="width:${w}in;height:${h}in;overflow:hidden;position:relative;">
+<div style="width:${w}in;height:${h}in;overflow:hidden;position:relative;border:0.05in solid #fff;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
   <img src="${imageUrl}" style="${imgStyle}" />
   ${sigHtml}
 </div>
@@ -3079,17 +3079,19 @@ function printPlaceholders() {
 <title>Batch Print</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: letter; margin: 0.2in; }
-  body { font-family: system-ui; background: white; padding-top: 56px; }
-  .ctrl { position: fixed; top: 0; left: 0; right: 0; background: rgba(14,14,29,0.96); color: white;
+  @page { size: letter; margin: 0.25in; }
+  body { font-family: system-ui; background: white; }
+  /* Sticky (not fixed): stays visible while scrolling the preview, but does
+     NOT repeat on every printed page the way a fixed bar can. */
+  .ctrl { position: sticky; top: 0; background: rgba(14,14,29,0.96); color: white;
     padding: 8px 16px; display: flex; gap: 12px; align-items: center; z-index:99; flex-wrap: wrap; }
   .ctrl button { background:#c89cff; border:none; border-radius:5px; color:#0e0e1d; font-weight:700; font-size:12px; padding:5px 14px; cursor:pointer; }
   .ctrl span { font-size:10px; opacity:.4; }
 
   /* Each .sheet is exactly one printed page. Items are packed into pages in
-     JS (packPrintPages) and a hard page break is forced after each sheet, so
-     the browser never fragments a CSS grid across pages — that fragmentation
-     is what cut cards in half and repainted ghost duplicates on the next page. */
+     JS (packPrintPages); break-inside:avoid keeps a page's grid whole and
+     break-before:page starts each later sheet on a fresh page, so the browser
+     never fragments a grid (the cause of cut-off cards AND ghost duplicates). */
   .sheet { width: 7.5in; margin: 0 auto; }
   .sheet + .sheet { margin-top: 0.4in; }
   .grid {
@@ -3121,23 +3123,22 @@ function printPlaceholders() {
   .grid.hide-info .print-info { display: none; }
   .grid.hide-info .print-img { object-position: center center; }
 
-  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; border: 0.05in solid #fff; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .fa-sig {
     position: absolute; bottom: 5px; right: 8px;
     font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
-    font-size: 13px; color: rgba(255,255,255,0.95); font-style: italic;
+    font-size: 13px; color: #000; font-style: italic;
     letter-spacing: 0.4px; font-weight: 500;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.6);
+    background: #fff; padding: 2px 7px; border-radius: 2px;
     z-index: 2; pointer-events: none;
     max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 
   @media print {
-    .ctrl { display: none; }
-    body { padding-top: 0; }
-    .sheet { width: auto; margin: 0; break-after: page; page-break-after: always; }
-    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .ctrl { display: none !important; }
+    .sheet { width: auto; margin: 0; break-inside: avoid; page-break-inside: avoid; }
+    .sheet:not(:first-child) { break-before: page; page-break-before: always; }
     .sheet + .sheet { margin-top: 0; }
     .print-item {
       break-inside: avoid !important;
@@ -3149,7 +3150,7 @@ function printPlaceholders() {
 </head><body>
 <div class="ctrl">
   <button onclick="window.print()">🖨 Print / Save PDF</button>
-  <span>Set scale to 100% (no fit) · ${items.length} item${items.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
+  <span>Print at 100% scale (no "fit to page") · ${items.length} item${items.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
 </div>
 ${pagesHTML}
 </body></html>`);
@@ -4800,13 +4801,15 @@ function printQueueNow() {
 <title>Print Queue</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: letter; margin: 0.2in; }
-  body { font-family: system-ui; background: white; padding-top: 56px; }
-  .ctrl { position: fixed; top: 0; left: 0; right: 0; background: rgba(14,14,29,0.96); color: white;
+  @page { size: letter; margin: 0.25in; }
+  body { font-family: system-ui; background: white; }
+  /* Sticky (not fixed): visible while scrolling, but never repeats per page. */
+  .ctrl { position: sticky; top: 0; background: rgba(14,14,29,0.96); color: white;
     padding: 8px 16px; display: flex; gap: 12px; align-items: center; z-index:99; flex-wrap: wrap; }
   .ctrl button { background:#c89cff; border:none; border-radius:5px; color:#0e0e1d; font-weight:700; font-size:12px; padding:5px 14px; cursor:pointer; }
   .ctrl span { font-size:10px; opacity:.4; }
-  /* One .sheet per printed page, hard break after each — see packPrintPages. */
+  /* One .sheet per printed page — break-inside:avoid keeps each page's grid
+     whole; break-before:page starts later sheets fresh. See packPrintPages. */
   .sheet { width: 7.5in; margin: 0 auto; }
   .sheet + .sheet { margin-top: 0.4in; }
   .grid {
@@ -4831,22 +4834,21 @@ function printQueueNow() {
   /* Toggle: hide the info bar entirely and let the image use the whole pocket. */
   .grid.hide-info .print-info { display: none; }
   .grid.hide-info .print-img { object-position: center center; }
-  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; border: 0.05in solid #fff; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .fa-sig {
     position: absolute; bottom: 5px; right: 8px;
     font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
-    font-size: 13px; color: rgba(255,255,255,0.95); font-style: italic;
+    font-size: 13px; color: #000; font-style: italic;
     letter-spacing: 0.4px; font-weight: 500;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.6);
+    background: #fff; padding: 2px 7px; border-radius: 2px;
     z-index: 2; pointer-events: none;
     max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   @media print {
-    .ctrl { display: none; }
-    body { padding-top: 0; }
-    .sheet { width: auto; margin: 0; break-after: page; page-break-after: always; }
-    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .ctrl { display: none !important; }
+    .sheet { width: auto; margin: 0; break-inside: avoid; page-break-inside: avoid; }
+    .sheet:not(:first-child) { break-before: page; page-break-before: always; }
     .sheet + .sheet { margin-top: 0; }
     .print-item {
       break-inside: avoid !important;
@@ -4858,7 +4860,7 @@ function printQueueNow() {
 </head><body>
 <div class="ctrl">
   <button onclick="window.print()">🖨 Print / Save PDF</button>
-  <span>Set scale to 100% (no fit) · ${printQueue.length} item${printQueue.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
+  <span>Print at 100% scale (no "fit to page") · ${printQueue.length} item${printQueue.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
 </div>
 ${pagesHTML}
 </body></html>`);
