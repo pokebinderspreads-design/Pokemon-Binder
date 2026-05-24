@@ -2773,6 +2773,10 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
     : cols===2&&rows===1 ? '2 wide (5" × 3.5")'
     : cols===1&&rows===2 ? '2 tall (2.5" × 7")'
     : '4 pockets (5" × 7")';
+  // Stamp the artist signature onto the printed art (cursive, bottom-right) —
+  // matches the binder view and respects the global show-signature toggle.
+  const showSig = showArtistSig && artist && artist !== 'Unknown artist';
+  const sigHtml = showSig ? '<span class="fa-sig">' + escapeHtml(artist) + '</span>' : '';
   const win = window.open('', '_blank');
   if (!win) { alert('Allow pop-ups for this page to use the print feature.'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -2789,6 +2793,16 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
   .ctrl .tip { font-size:10px; opacity:0.4; flex-basis:100%; padding-top:2px; }
   .ctrl button { background:#c89cff; border:none; border-radius:5px; color:#0e0e1d;
     font-weight:700; font-size:12px; padding:5px 14px; cursor:pointer; }
+  .fa-sig {
+    position:absolute; bottom:5px; right:8px;
+    font-family:'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
+    font-size:13px; color:rgba(255,255,255,0.95); font-style:italic;
+    letter-spacing:0.4px; font-weight:500;
+    text-shadow:0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.6);
+    z-index:2; pointer-events:none;
+    max-width:75%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
   @media print { .ctrl { display:none; } }
 </style>
 </head><body>
@@ -2800,6 +2814,7 @@ function printFanArt(imageUrl, artist, cols, rows, cropData) {
 </div>
 <div style="width:${w}in;height:${h}in;overflow:hidden;position:relative;">
   <img src="${imageUrl}" style="${imgStyle}" />
+  ${sigHtml}
 </div>
 </body></html>`);
   win.document.close();
@@ -2905,11 +2920,16 @@ ${spreadEl.outerHTML}
 function openPlaceholderPrint() {
   // Include both cards AND fan art so users can batch-print everything.
   // Skip empty placeholder slots.
-  const items = binder.filter(i => i.type === 'card' || i.type === 'fanart');
-  if (!items.length) { alert('No items in your binder yet.'); return; }
+  // Keep each item's ABSOLUTE binder index so we resolve the exact entry
+  // later — ids can collide (e.g. a card + its variant), which previously
+  // caused binder.find() to return the same item twice = duplicate prints.
+  const entries = binder
+    .map((item, idx) => ({ item, idx }))
+    .filter(e => e.item.type === 'card' || e.item.type === 'fanart');
+  if (!entries.length) { alert('No items in your binder yet.'); return; }
   const list = document.getElementById('phCardList');
   list.innerHTML = '';
-  items.forEach(item => {
+  entries.forEach(({ item, idx }) => {
     const cols = item.cols || 1, rows = item.rows || 1;
     const sizeLabel = cols===2 && rows===2 ? '4×'
       : cols===2 ? '2W'
@@ -2917,7 +2937,7 @@ function openPlaceholderPrint() {
       : '1×1';
     const div = document.createElement('div');
     div.className = 'ph-card-item selected';
-    div.dataset.id = item.id;
+    div.dataset.idx = idx;
     if (item.type === 'card') {
       const c = item.data;
       div.innerHTML = `
@@ -2951,47 +2971,107 @@ function phSelectAll(val) {
   document.querySelectorAll('.ph-card-item').forEach(el => el.classList.toggle('selected', val));
   updatePhCount();
 }
+// First-fit packing of binder items into fixed COLS×ROWS printed pages.
+// entries: [{ item, w, h }, ...] in order. An item that does not fit on the
+// current page opens a new page, so NO item ever straddles a page boundary.
+// That straddling was the root cause of BOTH symptoms users saw: a card cut
+// in half at the page break, and a "ghost duplicate" of that same card
+// repainted at the top of the next page (browsers fragment CSS grids badly).
+// Returns an array of pages; each page is an array of { item, r, c, w, h }.
+function packPrintPages(entries, COLS, ROWS) {
+  const pages = [];
+  let page = null, occ = null;
+  const startPage = () => {
+    page = [];
+    occ = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
+    pages.push(page);
+  };
+  const fits = (r, c, w, h) => {
+    if (c + w > COLS || r + h > ROWS) return false;
+    for (let y = r; y < r + h; y++)
+      for (let x = c; x < c + w; x++)
+        if (occ[y][x]) return false;
+    return true;
+  };
+  const findSlot = (w, h) => {
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (fits(r, c, w, h)) return { r, c };
+    return null;
+  };
+  const occupy = (r, c, w, h) => {
+    for (let y = r; y < r + h; y++)
+      for (let x = c; x < c + w; x++)
+        occ[y][x] = true;
+  };
+  startPage();
+  for (const e of entries) {
+    const w = Math.max(1, Math.min(e.w, COLS));
+    const h = Math.max(1, Math.min(e.h, ROWS));
+    let slot = findSlot(w, h);
+    if (!slot) { startPage(); slot = findSlot(w, h) || { r: 0, c: 0 }; }
+    occupy(slot.r, slot.c, w, h);
+    page.push({ item: e.item, r: slot.r, c: slot.c, w, h });
+  }
+  return pages;
+}
+
 function printPlaceholders() {
   const selected = [...document.querySelectorAll('.ph-card-item.selected')];
   if (!selected.length) { alert('Select at least one item.'); return; }
 
+  // Resolve each selection to its EXACT binder entry by absolute index so a
+  // shared id can never map two selections onto the same item (= duplicate).
   const items = selected
-    .map(el => binder.find(i => i.id === el.dataset.id))
+    .map(el => binder[+el.dataset.idx])
     .filter(Boolean);
 
-  const itemHTML = items.map(item => {
-    const cols = item.cols || 1, rows = item.rows || 1;
-    const sizeClass = cols===2 && rows===2 ? 'size-4x'
-      : cols===2 ? 'size-2w'
-      : rows===2 ? 'size-2t'
-      : 'size-1x';
+  // Letter portrait with 0.2in margins -> 8.1in x 10.6in printable area.
+  // 3 pockets wide (7.5in) by 3 pockets tall (10.5in) fit per page.
+  const COLS = 3, ROWS = 3;
+  const entries = items.map(item => ({
+    item,
+    w: Math.min(item.cols || 1, COLS),
+    h: Math.min(item.rows || 1, ROWS),
+  }));
+  const pages = packPrintPages(entries, COLS, ROWS);
 
+  const cellHTML = (placed) => {
+    const { item, r, c, w, h } = placed;
+    const pos = `grid-column:${c + 1}/span ${w};grid-row:${r + 1}/span ${h};`;
     if (item.type === 'card') {
-      const c = item.data;
-      return `<div class="print-item ${sizeClass}">
-        <img class="print-img" src="${c.images?.large || c.images?.small || ''}" alt="${c.name}">
+      const cc = item.data || {};
+      return `<div class="print-item" style="${pos}">
+        <img class="print-img" src="${escapeHtml(cc.images?.large || cc.images?.small || '')}" alt="${escapeHtml(cc.name || '')}">
         <div class="print-info">
-          <div class="print-name">${c.name}</div>
-          <div class="print-set">${c.set?.name || ''} · #${c.number || ''}</div>
-        </div>
-      </div>`;
-    } else {
-      // Fan art — preserve any crop / zoom the user applied
-      const d = item.data || {};
-      const cropX = d.cropX !== undefined ? d.cropX : 50;
-      const cropY = d.cropY !== undefined ? d.cropY : 50;
-      const zoom  = d.cropZoom || 1;
-      const leftPct = (cropX * (1 - zoom)).toFixed(2);
-      const topPct  = (cropY * (1 - zoom)).toFixed(2);
-      const wPct    = (zoom * 100).toFixed(1);
-      const imgStyle = `position:absolute;width:${wPct}%;height:${wPct}%;left:${leftPct}%;top:${topPct}%;object-fit:cover;object-position:${cropX}% ${cropY}%;max-width:none;max-height:none;`;
-      return `<div class="print-item ${sizeClass}">
-        <div class="fa-wrap">
-          <img src="${d.url || d.thumb || ''}" style="${imgStyle}" alt="Fan Art">
+          <div class="print-name">${escapeHtml(cc.name || '')}</div>
+          <div class="print-set">${escapeHtml(cc.set?.name || '')} · #${escapeHtml(cc.number || '')}</div>
         </div>
       </div>`;
     }
-  }).join('');
+    // Fan art — preserve crop/zoom and stamp the artist signature on the art.
+    const d = item.data || {};
+    const cropX = d.cropX !== undefined ? d.cropX : 50;
+    const cropY = d.cropY !== undefined ? d.cropY : 50;
+    const zoom  = d.cropZoom || 1;
+    const leftPct = (cropX * (1 - zoom)).toFixed(2);
+    const topPct  = (cropY * (1 - zoom)).toFixed(2);
+    const wPct    = (zoom * 100).toFixed(1);
+    const imgStyle = `position:absolute;width:${wPct}%;height:${wPct}%;left:${leftPct}%;top:${topPct}%;object-fit:cover;object-position:${cropX}% ${cropY}%;max-width:none;max-height:none;`;
+    const sig = (showArtistSig && d.author)
+      ? '<span class="fa-sig">' + escapeHtml(d.author) + '</span>'
+      : '';
+    return `<div class="print-item" style="${pos}">
+      <div class="fa-wrap">
+        <img src="${escapeHtml(d.url || d.thumb || '')}" style="${imgStyle}" alt="Fan Art">
+        ${sig}
+      </div>
+    </div>`;
+  };
+
+  const pagesHTML = pages.map(page =>
+    `<div class="sheet"><div class="grid${printShowInfo ? '' : ' hide-info'}">${page.map(cellHTML).join('')}</div></div>`
+  ).join('');
 
   const win = window.open('', '_blank');
   if (!win) { alert('Allow pop-ups to print.'); return; }
@@ -2999,62 +3079,66 @@ function printPlaceholders() {
 <title>Batch Print</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: letter; margin: 0.25in; }
-  body { font-family: system-ui; background: white; }
+  @page { size: letter; margin: 0.2in; }
+  body { font-family: system-ui; background: white; padding-top: 56px; }
   .ctrl { position: fixed; top: 0; left: 0; right: 0; background: rgba(14,14,29,0.96); color: white;
     padding: 8px 16px; display: flex; gap: 12px; align-items: center; z-index:99; flex-wrap: wrap; }
   .ctrl button { background:#c89cff; border:none; border-radius:5px; color:#0e0e1d; font-weight:700; font-size:12px; padding:5px 14px; cursor:pointer; }
   .ctrl span { font-size:10px; opacity:.4; }
 
-  /* 3 columns × 2.5in pockets, rows auto-grow at 3.5in.
-     grid-auto-flow: dense lets small items backfill gaps left by 2W/2T/4× items. */
+  /* Each .sheet is exactly one printed page. Items are packed into pages in
+     JS (packPrintPages) and a hard page break is forced after each sheet, so
+     the browser never fragments a CSS grid across pages — that fragmentation
+     is what cut cards in half and repainted ghost duplicates on the next page. */
+  .sheet { width: 7.5in; margin: 0 auto; }
+  .sheet + .sheet { margin-top: 0.4in; }
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 2.5in);
     grid-auto-rows: 3.5in;
-    grid-auto-flow: dense;
     gap: 0;
-    padding-top: 48px;
   }
   .print-item {
-    /* Use outline (not border) for the cut guide so the dashed line
-       doesn't subtract from the content area — fan art needs to fill
-       the full 2.5" × 3.5" pocket, not 2.5" minus 2px borders. */
+    /* Outline (not border) for the cut guide so the dashed line does not
+       subtract from the 2.5in x 3.5in content area. */
     outline: 1px dashed #bbb;
     outline-offset: -1px;
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    /* Cross-browser page-break safety so a single card never gets split */
     break-inside: avoid;
     page-break-inside: avoid;
     -webkit-column-break-inside: avoid;
   }
-  .print-item.size-1x { grid-column: span 1; grid-row: span 1; }
-  .print-item.size-2w { grid-column: span 2; grid-row: span 1; }
-  .print-item.size-2t { grid-column: span 1; grid-row: span 2; }
-  .print-item.size-4x { grid-column: span 2; grid-row: span 2; }
-
-  /* object-position: center top → the bottom of the card art is what
-     gets cropped when the info bar takes space (instead of the top). */
+  /* object-position: center top -> the bottom of the card art is what gets
+     cropped when the info bar takes space (instead of the top). */
   .print-img { flex:1; width:100%; min-height:0; object-fit:cover; object-position:center top; display:block; }
   .print-info { padding: 4px 6px; background: white; border-top: 1px solid #eee; }
   .print-name { font-size: 9pt; font-weight: 700; color: #222; }
   .print-set  { font-size: 7pt; color: #888; margin-top: 1px; }
-
-  /* When the user turns off the info bar, hide it AND let the image
-     fill the full pocket (no cropping at all — card aspect ratio matches). */
+  /* When the info bar is hidden, let the image fill the full pocket. */
   .grid.hide-info .print-info { display: none; }
   .grid.hide-info .print-img { object-position: center center; }
 
-  /* Fan art wrapper holds the absolutely-positioned cropped image */
   .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .fa-sig {
+    position: absolute; bottom: 5px; right: 8px;
+    font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
+    font-size: 13px; color: rgba(255,255,255,0.95); font-style: italic;
+    letter-spacing: 0.4px; font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.6);
+    z-index: 2; pointer-events: none;
+    max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
 
   @media print {
     .ctrl { display: none; }
-    .grid { padding-top: 0; }
-    /* Force every grid item to stay whole inside one page */
+    body { padding-top: 0; }
+    .sheet { width: auto; margin: 0; break-after: page; page-break-after: always; }
+    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .sheet + .sheet { margin-top: 0; }
     .print-item {
       break-inside: avoid !important;
       page-break-inside: avoid !important;
@@ -3065,9 +3149,9 @@ function printPlaceholders() {
 </head><body>
 <div class="ctrl">
   <button onclick="window.print()">🖨 Print / Save PDF</button>
-  <span>Set scale to 100% (no fit) · ${items.length} items packed densely${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
+  <span>Set scale to 100% (no fit) · ${items.length} item${items.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
 </div>
-<div class="grid${printShowInfo ? '' : ' hide-info'}">${itemHTML}</div>
+${pagesHTML}
 </body></html>`);
   win.document.close();
   closePhModal();
@@ -4661,37 +4745,54 @@ function renderPrintQueueModalList() {
   }
 }
 
-// Render the queue as one print job using the same dense-pack grid as Batch Print
+// Render the queue as one print job. Uses the same explicit per-page packing
+// as Batch Print so no card is ever split across a page (and never ghost-
+// duplicated at the top of the next page).
 function printQueueNow() {
   if (!printQueue.length) { alert('Print queue is empty.'); return; }
-  const itemHTML = printQueue.map(it => {
-    const cols = it.cols||1, rows = it.rows||1;
-    const sizeClass = cols===2 && rows===2 ? 'size-4x'
-      : cols===2 ? 'size-2w'
-      : rows===2 ? 'size-2t'
-      : 'size-1x';
+
+  const COLS = 3, ROWS = 3;
+  const entries = printQueue.map(it => ({
+    item: it,
+    w: Math.min(it.cols || 1, COLS),
+    h: Math.min(it.rows || 1, ROWS),
+  }));
+  const pages = packPrintPages(entries, COLS, ROWS);
+
+  const cellHTML = (placed) => {
+    const { item: it, r, c, w, h } = placed;
+    const pos = `grid-column:${c + 1}/span ${w};grid-row:${r + 1}/span ${h};`;
     if (it.kind === 'card') {
-      return `<div class="print-item ${sizeClass}">
-        <img class="print-img" src="${it.imgLarge}" alt="${escapeHtml(it.name)}">
+      return `<div class="print-item" style="${pos}">
+        <img class="print-img" src="${escapeHtml(it.imgLarge || '')}" alt="${escapeHtml(it.name || '')}">
         <div class="print-info">
-          <div class="print-name">${escapeHtml(it.name)}</div>
-          <div class="print-set">${escapeHtml(it.set)} · #${escapeHtml(it.number)}</div>
+          <div class="print-name">${escapeHtml(it.name || '')}</div>
+          <div class="print-set">${escapeHtml(it.set || '')} · #${escapeHtml(it.number || '')}</div>
         </div>
       </div>`;
-    } else {
-      const c = it.crop || {};
-      const cropX = c.cropX !== undefined ? c.cropX : 50;
-      const cropY = c.cropY !== undefined ? c.cropY : 50;
-      const zoom  = c.cropZoom || 1;
-      const leftPct = (cropX * (1 - zoom)).toFixed(2);
-      const topPct  = (cropY * (1 - zoom)).toFixed(2);
-      const wPct    = (zoom * 100).toFixed(1);
-      const imgStyle = `position:absolute;width:${wPct}%;height:${wPct}%;left:${leftPct}%;top:${topPct}%;object-fit:cover;object-position:${cropX}% ${cropY}%;max-width:none;max-height:none;`;
-      return `<div class="print-item ${sizeClass}">
-        <div class="fa-wrap"><img src="${it.imgLarge}" style="${imgStyle}" alt="Fan Art"></div>
-      </div>`;
     }
-  }).join('');
+    const cc = it.crop || {};
+    const cropX = cc.cropX !== undefined ? cc.cropX : 50;
+    const cropY = cc.cropY !== undefined ? cc.cropY : 50;
+    const zoom  = cc.cropZoom || 1;
+    const leftPct = (cropX * (1 - zoom)).toFixed(2);
+    const topPct  = (cropY * (1 - zoom)).toFixed(2);
+    const wPct    = (zoom * 100).toFixed(1);
+    const imgStyle = `position:absolute;width:${wPct}%;height:${wPct}%;left:${leftPct}%;top:${topPct}%;object-fit:cover;object-position:${cropX}% ${cropY}%;max-width:none;max-height:none;`;
+    const sig = (showArtistSig && it.artist)
+      ? '<span class="fa-sig">' + escapeHtml(it.artist) + '</span>'
+      : '';
+    return `<div class="print-item" style="${pos}">
+      <div class="fa-wrap">
+        <img src="${escapeHtml(it.imgLarge || '')}" style="${imgStyle}" alt="Fan Art">
+        ${sig}
+      </div>
+    </div>`;
+  };
+
+  const pagesHTML = pages.map(page =>
+    `<div class="sheet"><div class="grid${printShowInfo ? '' : ' hide-info'}">${page.map(cellHTML).join('')}</div></div>`
+  ).join('');
 
   const win = window.open('', '_blank');
   if (!win) { alert('Allow pop-ups to print.'); return; }
@@ -4699,19 +4800,20 @@ function printQueueNow() {
 <title>Print Queue</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: letter; margin: 0.25in; }
-  body { font-family: system-ui; background: white; }
+  @page { size: letter; margin: 0.2in; }
+  body { font-family: system-ui; background: white; padding-top: 56px; }
   .ctrl { position: fixed; top: 0; left: 0; right: 0; background: rgba(14,14,29,0.96); color: white;
     padding: 8px 16px; display: flex; gap: 12px; align-items: center; z-index:99; flex-wrap: wrap; }
   .ctrl button { background:#c89cff; border:none; border-radius:5px; color:#0e0e1d; font-weight:700; font-size:12px; padding:5px 14px; cursor:pointer; }
   .ctrl span { font-size:10px; opacity:.4; }
+  /* One .sheet per printed page, hard break after each — see packPrintPages. */
+  .sheet { width: 7.5in; margin: 0 auto; }
+  .sheet + .sheet { margin-top: 0.4in; }
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 2.5in);
     grid-auto-rows: 3.5in;
-    grid-auto-flow: dense;
     gap: 0;
-    padding-top: 48px;
   }
   .print-item {
     outline: 1px dashed #bbb; outline-offset: -1px;
@@ -4720,10 +4822,6 @@ function printQueueNow() {
     break-inside: avoid; page-break-inside: avoid;
     -webkit-column-break-inside: avoid;
   }
-  .print-item.size-1x { grid-column: span 1; grid-row: span 1; }
-  .print-item.size-2w { grid-column: span 2; grid-row: span 1; }
-  .print-item.size-2t { grid-column: span 1; grid-row: span 2; }
-  .print-item.size-4x { grid-column: span 2; grid-row: span 2; }
   /* Keep the TOP of the card visible; crop the bottom when the info bar
      eats vertical space. */
   .print-img { flex:1; width:100%; min-height:0; object-fit:cover; object-position:center top; display:block; }
@@ -4734,9 +4832,22 @@ function printQueueNow() {
   .grid.hide-info .print-info { display: none; }
   .grid.hide-info .print-img { object-position: center center; }
   .fa-wrap { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .fa-sig {
+    position: absolute; bottom: 5px; right: 8px;
+    font-family: 'Brush Script MT','Snell Roundhand','Apple Chancery','Lucida Handwriting',cursive;
+    font-size: 13px; color: rgba(255,255,255,0.95); font-style: italic;
+    letter-spacing: 0.4px; font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.6);
+    z-index: 2; pointer-events: none;
+    max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   @media print {
     .ctrl { display: none; }
-    .grid { padding-top: 0; }
+    body { padding-top: 0; }
+    .sheet { width: auto; margin: 0; break-after: page; page-break-after: always; }
+    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .sheet + .sheet { margin-top: 0; }
     .print-item {
       break-inside: avoid !important;
       page-break-inside: avoid !important;
@@ -4747,9 +4858,9 @@ function printQueueNow() {
 </head><body>
 <div class="ctrl">
   <button onclick="window.print()">🖨 Print / Save PDF</button>
-  <span>Set scale to 100% (no fit) · ${printQueue.length} items packed densely${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
+  <span>Set scale to 100% (no fit) · ${printQueue.length} item${printQueue.length === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}${printShowInfo ? '' : ' · No info bar — full card art'} · Cut along dashed lines</span>
 </div>
-<div class="grid${printShowInfo ? '' : ' hide-info'}">${itemHTML}</div>
+${pagesHTML}
 </body></html>`);
   win.document.close();
 }
