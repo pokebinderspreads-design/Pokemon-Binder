@@ -3135,10 +3135,12 @@ function printPlaceholders() {
     .filter(Boolean);
 
   // Dense: 0.25in margins, 3 rows (9 pockets/page) — tightest fit, but needs a
-  // printer that prints within 0.25in of the edge. Printer-safe: 0.5in margins,
-  // 2 rows (6 pockets/page) — clears any printer's non-printable edge.
+  // printer that prints within 0.25in of the edge. Printer-safe: 0.6in top/bottom
+  // + 0.5in side margins, 2 rows (6 pockets/page) — clears any printer's
+  // non-printable edge with room to spare. (Sides stay 0.5in so the 7.5in-wide
+  // 3-column grid still fits.)
   const COLS = 3, ROWS = printerSafe ? 2 : 3;
-  const pageMargin = printerSafe ? '0.5in' : '0.25in';
+  const pageMargin = printerSafe ? '0.6in 0.5in' : '0.25in';
   const entries = items.map(item => ({
     item,
     w: Math.min(item.cols || 1, COLS),
@@ -4757,7 +4759,9 @@ function setPrintShowInfo(val) {
 // instead of the dense 9-up. The dense 9-up leaves only 0.25in margins, which
 // is tighter than many printers' physical non-printable edge, so the top row
 // gets clipped on paper even though print-preview / print-to-PDF look fine.
-let printerSafe = localStorage.getItem('pkm_printer_safe') === 'true';
+// DEFAULT ON — safe printing out of the box. Uncheck for dense 9-up on a
+// printer that can print close to the paper edge.
+let printerSafe = localStorage.getItem('pkm_printer_safe') !== 'false';
 function setPrinterSafe(val) {
   printerSafe = !!val;
   localStorage.setItem('pkm_printer_safe', printerSafe ? 'true' : 'false');
@@ -4875,9 +4879,9 @@ function renderPrintQueueModalList() {
 function printQueueNow() {
   if (!printQueue.length) { alert('Print queue is empty.'); return; }
 
-  // Printer-safe (0.5in margins, 6/page) vs dense (0.25in margins, 9/page).
+  // Printer-safe (0.6in/0.5in margins, 6/page) vs dense (0.25in margins, 9/page).
   const COLS = 3, ROWS = printerSafe ? 2 : 3;
-  const pageMargin = printerSafe ? '0.5in' : '0.25in';
+  const pageMargin = printerSafe ? '0.6in 0.5in' : '0.25in';
   const entries = printQueue.map(it => ({
     item: it,
     w: Math.min(it.cols || 1, COLS),
